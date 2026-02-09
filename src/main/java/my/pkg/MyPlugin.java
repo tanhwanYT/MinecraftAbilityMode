@@ -1,8 +1,6 @@
 package my.pkg;
 
-import my.pkg.abilities.MalphiteAbility;
-import my.pkg.abilities.ViperAbility;
-import my.pkg.abilities.KiyathowAbility;
+import my.pkg.abilities.*;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MyPlugin extends JavaPlugin {
@@ -16,6 +14,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new MalphiteAbility());
         abilitySystem.register(new ViperAbility());
         abilitySystem.register(new KiyathowAbility());
+        abilitySystem.register(new BombermanAbility());
+        abilitySystem.register(new AntmanAbility());
         abilitySystem.registerListeners();
 
         getCommand("ability").setExecutor(abilitySystem);

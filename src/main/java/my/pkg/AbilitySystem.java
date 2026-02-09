@@ -17,6 +17,8 @@ import org.bukkit.command.CommandSender;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
 public class AbilitySystem implements Listener, CommandExecutor {
     private final JavaPlugin plugin;
@@ -60,6 +62,22 @@ public class AbilitySystem implements Listener, CommandExecutor {
         if (ability != null) {
             // 신규 능력 지급 훅 호출
             ability.onGrant(this, player);
+        }
+    }
+
+    @EventHandler
+    public void onDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        DamageCause cause = event.getCause();
+        if (cause != DamageCause.ENTITY_EXPLOSION && cause != DamageCause.BLOCK_EXPLOSION) return;
+
+        PlayerState state = getState(player);
+        if (state.getAbility() == null) return;
+
+        // bomberman이면 폭발 피해 취소
+        if (state.getAbility().id().equalsIgnoreCase("bomberman")) {
+            event.setCancelled(true);
         }
     }
 
