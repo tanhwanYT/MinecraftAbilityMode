@@ -69,16 +69,37 @@ public class AbilitySystem implements Listener, CommandExecutor {
     public void onDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
-        DamageCause cause = event.getCause();
-        if (cause != DamageCause.ENTITY_EXPLOSION && cause != DamageCause.BLOCK_EXPLOSION) return;
+        PlayerState state = getState(player);
+        if (state.getAbility() == null) return;
+
+        // ✅ 능력에게 넘김 (패시브)
+        state.getAbility().onDamage(this, event);
+    }
+
+    @EventHandler
+    public void onMove(org.bukkit.event.player.PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        PlayerState state = getState(player);
+        if (state.getAbility() == null) return;
+
+        // 블록 단위로 바뀐 경우만 처리 (성능)
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
+                && event.getFrom().getBlockY() == event.getTo().getBlockY()
+                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+            return;
+        }
+
+        state.getAbility().onMove(this, event);
+    }
+
+    @EventHandler
+    public void onAttack(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
 
         PlayerState state = getState(player);
         if (state.getAbility() == null) return;
 
-        // bomberman이면 폭발 피해 취소
-        if (state.getAbility().id().equalsIgnoreCase("bomberman")) {
-            event.setCancelled(true);
-        }
+        state.getAbility().onAttack(this, event);
     }
 
     @Override

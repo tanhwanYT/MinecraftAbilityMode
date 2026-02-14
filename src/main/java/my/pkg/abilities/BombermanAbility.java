@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.util.Vector;
 
 public class BombermanAbility implements Ability {
@@ -21,6 +22,16 @@ public class BombermanAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         player.sendMessage("붐버맨 : 능력사용시 사방에 점화된 TNT를 설치합니다. 본인은 모든 폭발피해에 면역입니다!");
+    }
+
+    @Override
+    public void onDamage(AbilitySystem system, EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player)) return;
+
+        EntityDamageEvent.DamageCause cause = event.getCause();
+        if (cause == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION || cause == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+            event.setCancelled(true);
+        }
     }
 
     @Override
@@ -52,4 +63,6 @@ public class BombermanAbility implements Ability {
         tnt.setYield(4.0f);        // 폭발 범위(기본 TNT 느낌)
         tnt.setIsIncendiary(false);
     }
+
+
 }
