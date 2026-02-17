@@ -1,0 +1,9 @@
+name: MyPlugin
+version: 1.0.0
+main: my.pkg.MyPlugin
+api-version: "1.21"
+
+commands:
+  ability:
+    description: Ability commands
+    usage: /ability <me|give|start>
