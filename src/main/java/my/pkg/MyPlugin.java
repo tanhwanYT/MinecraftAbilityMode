@@ -9,8 +9,9 @@ public final class MyPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        this.abilitySystem = new AbilitySystem(this);
+        abilitySystem.registerListeners();
 
-        abilitySystem = new AbilitySystem(this);
         abilitySystem.register(new MalphiteAbility());
         abilitySystem.register(new ViperAbility());
         abilitySystem.register(new KiyathowAbility());
@@ -18,6 +19,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new AntmanAbility());
         abilitySystem.register(new SpeedingAbility());
         abilitySystem.register(new GamblerAbility());
+        abilitySystem.register(new donationAbility(this)); // ✅ 추가
         abilitySystem.registerListeners();
 
         getCommand("ability").setExecutor(abilitySystem);

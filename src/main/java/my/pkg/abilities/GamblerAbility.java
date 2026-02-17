@@ -26,27 +26,37 @@ public class GamblerAbility implements Ability {
     }
 
     @Override
-    public void onAttack(AbilitySystem system, EntityDamageByEntityEvent event) {
-        // 공격자
-        if (!(event.getDamager() instanceof Player attacker)) return;
+    public void onGrant(AbilitySystem system, Player player) {
+        // 사용법 안내
+        player.sendMessage("도박꾼 : 맨손으로 타격시 상대에게 1~5의 랜덤대미지를 입힙니다. 하지만 본인이 피해를 입을수도 있습니다.");
+    }
 
-        // 타겟은 LivingEntity만 (플레이어/몹/동물)
+    @Override
+    public void onAttack(AbilitySystem system, EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player attacker)) return;
         if (!(event.getEntity() instanceof LivingEntity target)) return;
 
-        // ✅ 맨손 조건
+        // 맨손만
         if (attacker.getInventory().getItemInMainHand().getType() != Material.AIR) return;
 
-        // 원래 데미지 취소하고 우리가 "고정 피해" 적용
-        event.setCancelled(true);
-
         int dmg = ThreadLocalRandom.current().nextInt(1, 9); // 1~8
-        boolean backfire = ThreadLocalRandom.current().nextBoolean(); // 50%
+        boolean backfire = ThreadLocalRandom.current().nextBoolean();
 
         if (backfire) {
-            attacker.damage(dmg);
+            // ✅ 이번 공격은 "빗나감" 처리: 대상 피해 0으로
+            event.setDamage(0.0);
+
+            // ✅ 대신 본인이 피해를 받음 (다음 틱에 주는 게 안전)
+            system.getPlugin().getServer().getScheduler().runTask(system.getPlugin(), () -> {
+                if (attacker.isOnline() && !attacker.isDead()) {
+                    attacker.damage(dmg);
+                }
+            });
+
             attacker.sendMessage("§c[도박꾼] 꽝! 내가 " + dmg + " 피해를 받았다!");
         } else {
-            target.damage(dmg, attacker);
+            // ✅ 공격은 정상 처리되게 두고, 데미지만 고정값으로 덮어쓰기
+            event.setDamage((double) dmg);
             attacker.sendMessage("§a[도박꾼] 적중! 상대에게 " + dmg + " 피해!");
         }
     }

@@ -26,6 +26,12 @@ public class SpeedingAbility implements Ability {
     }
 
     @Override
+    public void onGrant(AbilitySystem system, Player player) {
+        // 사용법 안내
+        player.sendMessage("속도위반 : 노란양털을 밟았을때 속도버프를 받습니다. ");
+    }
+
+    @Override
     public void onMove(AbilitySystem system, PlayerMoveEvent event) {
         Player p = event.getPlayer();
 
@@ -33,7 +39,7 @@ public class SpeedingAbility implements Ability {
         Material under = event.getTo().getBlock().getRelative(0, -1, 0).getType();
         if (under == Material.YELLOW_WOOL) {
             // 2초짜리 버프를 계속 갱신 (움직이는 동안 유지)
-            p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 40, 1, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20, 1, false, false));
         }
     }
 }
