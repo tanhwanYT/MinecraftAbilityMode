@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
 public class AbilitySystem implements Listener, CommandExecutor {
@@ -52,6 +55,11 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
     public void grant(Player player, Ability ability) {
         PlayerState state = getState(player);
+        if (state.cooldownTask != null) {
+            state.cooldownTask.cancel();
+            state.cooldownTask = null;
+        }
+        player.sendActionBar("");
         if (state.ability != null) {
             // 기존 능력 회수 훅 호출
             state.ability.onRemove(this, player);
@@ -63,6 +71,41 @@ public class AbilitySystem implements Listener, CommandExecutor {
             // 신규 능력 지급 훅 호출
             ability.onGrant(this, player);
         }
+    }
+
+    private void startCooldownActionBar(Player player, PlayerState state, Ability ability) {
+        // 기존 표시 작업 있으면 제거
+        if (state.cooldownTask != null) {
+            state.cooldownTask.cancel();
+            state.cooldownTask = null;
+        }
+
+        state.cooldownTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!player.isOnline()) {
+                    cancel();
+                    return;
+                }
+
+                long now = System.currentTimeMillis();
+                long remainingMs = state.nextUsableAtMs - now;
+
+                // 쿨 끝
+                if (remainingMs <= 0) {
+                    // 액션바 지우기(빈 문자열)
+                    player.sendActionBar("");
+                    state.cooldownTask = null;
+                    cancel();
+                    return;
+                }
+
+                long sec = (remainingMs + 999) / 1000;
+
+                // 원하는 문구로 수정 가능
+                player.sendActionBar("§7[§b" + ability.name() + "§7] §f쿨타임 §c" + sec + "s");
+            }
+        }.runTaskTimer(plugin, 0L, 10L); // 10틱=0.5초마다 갱신 (부드럽게)
     }
 
     @EventHandler
@@ -188,17 +231,17 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+
+        // ✅ 메인핸드 이벤트만 처리 (오프핸드 중복 발동 방지)
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+
         // 발동 트리거: 네더스타 우클릭
-        if (event.getHand() == null || event.getItem() == null) {
-            return;
-        }
+        if (event.getItem() == null) return;
+
         Action action = event.getAction();
-        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-        if (event.getItem().getType() != Material.NETHER_STAR) {
-            return;
-        }
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        if (event.getItem().getType() != Material.NETHER_STAR) return;
 
         Player player = event.getPlayer();
         PlayerState state = getState(player);
@@ -206,20 +249,21 @@ public class AbilitySystem implements Listener, CommandExecutor {
             player.sendMessage("당신은 무능력자입니다.");
             return;
         }
+
         long now = System.currentTimeMillis();
+
         if (now < state.nextUsableAtMs) {
-            // 쿨타임 남았으면 안내만 하고 종료
-            long remaining = state.nextUsableAtMs - now;
-            long seconds = (remaining + 999) / 1000;
-            player.sendMessage("남은 쿨타임 : " + seconds + "s");
+            // 이미 쿨표시가 돌고 있을텐데, 혹시 없으면 다시 시작
+            startCooldownActionBar(player, state, state.ability);
             return;
         }
 
-        // 실제 능력 발동
         boolean activated = state.ability.activate(this, player);
         if (activated) {
-            // 발동 성공 시 쿨타임 시작
             state.nextUsableAtMs = now + state.ability.cooldownSeconds() * 1000L;
+
+            // ✅ 능력 사용 직후부터 액션바로 쿨타임 표시
+            startCooldownActionBar(player, state, state.ability);
         }
     }
 
@@ -229,6 +273,8 @@ public class AbilitySystem implements Listener, CommandExecutor {
         private Ability ability;
         // 다음 사용 가능 시각(ms)
         private long nextUsableAtMs;
+
+        private BukkitTask cooldownTask;
 
         public PlayerState(UUID playerId) {
             this.playerId = playerId;
