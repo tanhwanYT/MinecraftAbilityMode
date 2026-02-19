@@ -39,7 +39,7 @@ public class MalphiteAbility implements Ability {
         player.addPotionEffect(new PotionEffect(
                 PotionEffectType.SPEED,
                 20, // 1초
-                3,
+                5,
                 false,
                 false
         ));

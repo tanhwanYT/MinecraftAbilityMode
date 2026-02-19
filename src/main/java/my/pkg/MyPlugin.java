@@ -21,6 +21,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new GamblerAbility());
         abilitySystem.register(new SniperAbility(this));
         abilitySystem.register(new donationAbility(this));
+        abilitySystem.register(new JokerAbility());
         abilitySystem.registerListeners();
 
         getCommand("ability").setExecutor(abilitySystem);

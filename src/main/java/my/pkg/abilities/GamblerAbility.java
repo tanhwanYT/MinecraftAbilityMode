@@ -21,7 +21,7 @@ public class GamblerAbility implements Ability {
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
-        player.sendMessage("§d[도박꾼] 패시브 능력입니다. 맨손으로 때려보세요!");
+        player.sendMessage("§d[도박꾼] 패시브 능력입니다. 맨손으로 때리세요!");
         return false;
     }
 
