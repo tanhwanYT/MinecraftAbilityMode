@@ -38,7 +38,7 @@ public class SniperAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("§b[스나이퍼] §f네더스타 우클릭 시 바라보는 방향에 폭죽 + 잔상!");
+        player.sendMessage("스나이퍼 : 바라보는 지점에 폭발을 일으키는 탄환을 터트립니다. 탄환은 잔상이 남아 상대에게 위치를 들킬수있습니다.");
     }
 
     @Override

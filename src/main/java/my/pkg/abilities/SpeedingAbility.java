@@ -21,7 +21,7 @@ public class SpeedingAbility implements Ability {
     @Override
     public boolean activate(AbilitySystem system, Player player) {
         // 패시브: 네더스타 발동 안 씀
-        player.sendMessage("§e[속도위반] 패시브 능력입니다. 노란 양털을 밟아보세요!");
+        player.sendMessage("§e[속도위반] 패시브 능력입니다.");
         return false;
     }
 
