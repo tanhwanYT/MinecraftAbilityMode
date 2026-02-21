@@ -123,16 +123,17 @@ public class donationAbility implements Ability, Listener {
         if (event.getTo() == null) return;
 
         // 이동 막기 (시선 회전은 허용)
-        boolean moved = event.getFrom().getX() != event.getTo().getX()
-                || event.getFrom().getY() != event.getTo().getY()
+        // 이동 막기 (X/Z만 고정, Y는 허용해서 낙하 가능 -> Fly 킥 방지)
+        boolean movedXZ = event.getFrom().getX() != event.getTo().getX()
                 || event.getFrom().getZ() != event.getTo().getZ();
 
-        if (moved) {
-            var to = event.getFrom().clone();
-            to.setYaw(event.getTo().getYaw());
-            to.setPitch(event.getTo().getPitch());
+        if (movedXZ) {
+            var to = event.getTo().clone();
+            to.setX(event.getFrom().getX());
+            to.setZ(event.getFrom().getZ());
             event.setTo(to);
         }
+
     }
 
     @EventHandler

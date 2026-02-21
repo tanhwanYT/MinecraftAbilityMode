@@ -19,7 +19,7 @@ public class TaliyahAbility implements Ability {
     private final JavaPlugin plugin;
 
     // ===== 밸런스/연출 설정 =====
-    private static final int COOLDOWN = 25;
+    private static final int COOLDOWN = 120;
 
     private static final int DURATION_TICKS = 20 * 4; // 4초 동안 전진/벽 생성
     private static final int REVERT_DELAY_TICKS = 20 * 6; // 6초 후 벽 원복
