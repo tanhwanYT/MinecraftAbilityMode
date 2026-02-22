@@ -12,7 +12,7 @@ public class PanicAbility implements Ability {
     // 설정
     private static final double RANGE = 12.0;     // 가장 가까운 플레이어 탐색 범위
     private static final int NAUSEA_TICKS = 20 * 3; // 3초
-    private static final int BLIND_TICKS = 20 * 1;  // 1초
+    private static final int BLIND_TICKS = 20 * 6;  // 6초
 
     @Override
     public String id() { return "panic"; }

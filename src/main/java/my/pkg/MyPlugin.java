@@ -10,7 +10,6 @@ public final class MyPlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         this.abilitySystem = new AbilitySystem(this);
-        abilitySystem.registerListeners();
 
         abilitySystem.register(new MalphiteAbility());
         abilitySystem.register(new ViperAbility());
@@ -25,8 +24,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new JokerAbility());
         abilitySystem.register(new PanicAbility());
         abilitySystem.register(new GlowAbility());
-        abilitySystem.registerListeners();
 
+        abilitySystem.registerListeners();
         getCommand("ability").setExecutor(abilitySystem);
     }
 

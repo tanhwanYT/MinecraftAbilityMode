@@ -58,12 +58,13 @@ public class BombermanAbility implements Ability {
 
     @Override
     public void onDamage(AbilitySystem system, EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player)) return;
+        if (!(event.getEntity() instanceof Player player)) return;
 
         EntityDamageEvent.DamageCause cause = event.getCause();
         if (cause == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
                 || cause == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
-            event.setCancelled(true);
+
+            event.setDamage(0.0);
         }
     }
 

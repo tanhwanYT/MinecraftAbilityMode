@@ -15,31 +15,17 @@ public class JokerAbility implements Ability {
     public String name() { return "조커"; }
 
     @Override
-    public int cooldownSeconds() { return 20; } // 원하는대로
+    public int cooldownSeconds() { return 0; } // 원하는대로
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("조커 : 능력 사용시 모든 플레이어의 능력을 확인합니다. 패시브로 미러링 능력(자신을 죽인 플레이어 같이 죽이기)이 탑재되어있습니다.");
+        player.sendMessage("조커 : 패시브로 미러링 능력(자신을 죽인 플레이어 같이 죽이기)이 있습니다.");
     }
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
-        player.sendMessage("§8§m------------------------------");
-        player.sendMessage("§d§l[조커] §f현재 온라인 플레이어 능력 목록");
-
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            AbilitySystem.PlayerState st = system.getState(p);
-            Ability a = st.getAbility();
-
-            String abilityText = (a == null)
-                    ? "§7무능력"
-                    : ("§b" + a.name() + " §7(" + a.id() + ")");
-
-            player.sendMessage("§f- §e" + p.getName() + "§7 : " + abilityText);
-        }
-
-        player.sendMessage("§8§m------------------------------");
-        return true;
+        player.sendMessage("§e[조커] 패시브 능력입니다.");
+        return false;
     }
 
     @Override

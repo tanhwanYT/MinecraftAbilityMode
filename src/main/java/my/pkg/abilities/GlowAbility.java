@@ -1,17 +1,25 @@
 package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GlowAbility implements Ability {
 
-    private static final int GLOW_FOREVER_TICKS = 20 * 60 * 60; // 1시간 (사실상 무한)
     private static final int TARGET_GLOW_TICKS = 20 * 6;        // 맞춘 상대 발광 6초
 
+    private static final int ON_TICKS = 10;   // 0.5초 ON
+    private static final int OFF_TICKS = 10;  // 0.5초 OFF
+    private static final Map<UUID, BukkitTask> blinkTasks = new ConcurrentHashMap<>();
     @Override
     public String id() { return "glow"; }
 
@@ -24,13 +32,12 @@ public class GlowAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         player.sendMessage("라이징스타 : 당신은 항상 빛납니다. 대신 공격한 상대도 잠깐 빛나게 합니다.");
-
-        // 본인 상시 발광
-        player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, GLOW_FOREVER_TICKS, 0, true, false, true));
+        startBlink(system, player);
     }
 
     @Override
     public void onRemove(AbilitySystem system, Player player) {
+        stopBlink(player);
         player.removePotionEffect(PotionEffectType.GLOWING);
     }
 
@@ -51,5 +58,46 @@ public class GlowAbility implements Ability {
         victim.getWorld().playSound(victim.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.6f, 1.4f);
 
         attacker.sendActionBar("§e[라이징스타] §f대상이 빛납니다!");
+    }
+
+    private void startBlink(AbilitySystem system, Player player) {
+        UUID id = player.getUniqueId();
+
+        stopBlink(player); // 혹시 중복 방지
+
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(system.getPlugin(), new Runnable() {
+
+            boolean glowing = false;
+            int timer = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead()) {
+                    stopBlink(player);
+                    return;
+                }
+
+                timer++;
+
+                if (glowing && timer >= ON_TICKS) {
+                    player.removePotionEffect(PotionEffectType.GLOWING);
+                    glowing = false;
+                    timer = 0;
+                }
+                else if (!glowing && timer >= OFF_TICKS) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, ON_TICKS + 2, 0, true, false, true));
+                    glowing = true;
+                    timer = 0;
+                }
+            }
+        }, 0L, 1L);
+
+        blinkTasks.put(id, task);
+    }
+
+    private void stopBlink(Player player) {
+        UUID id = player.getUniqueId();
+        BukkitTask task = blinkTasks.remove(id);
+        if (task != null) task.cancel();
     }
 }
