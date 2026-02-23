@@ -1,4 +1,4 @@
-package my.pkg;
+﻿package my.pkg;
 
 import my.pkg.abilities.*;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -24,6 +24,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new JokerAbility());
         abilitySystem.register(new PanicAbility());
         abilitySystem.register(new GlowAbility());
+        abilitySystem.register(new BodyguardAbility(this));
+        abilitySystem.register(new HitmanAbility(this));
 
         abilitySystem.registerListeners();
         getCommand("ability").setExecutor(abilitySystem);
