@@ -65,12 +65,52 @@ public class ViperAbility implements Ability {
                     return;
                 }
 
-                // 가스 연출 (너무 무겁지 않게)
-                // 중심에 살짝
-                player.getWorld().spawnParticle(Particle.SPORE_BLOSSOM_AIR, center, 20, radius * 0.3, 0.5, radius * 0.3, 0.01);
-                // 바닥 주변 살짝
+                // 위쪽 퍼지는 독기
+                player.getWorld().spawnParticle(
+                        Particle.SPORE_BLOSSOM_AIR,
+                        center.clone().add(0, 0.8, 0),
+                        80,                    // 20 → 80 (4배 증가)
+                        radius * 0.6,          // 퍼짐 범위 확대
+                        0.8,
+                        radius * 0.6,
+                        0.02
+                );
+
+                // 중간층 가스층 추가
+                player.getWorld().spawnParticle(
+                        Particle.SPORE_BLOSSOM_AIR,
+                        center.clone().add(0, 0.4, 0),
+                        60,
+                        radius * 0.5,
+                        0.4,
+                        radius * 0.5,
+                        0.02
+                );
+
+                // 바닥 연막 강화
                 Location ground = center.clone();
-                ground.setY(center.getY() + 0.2);
+                ground.setY(center.getY() + 0.15);
+
+                player.getWorld().spawnParticle(
+                        Particle.CAMPFIRE_COSY_SMOKE,
+                        ground,
+                        25,                    // 6 → 25
+                        radius * 0.7,
+                        0.2,
+                        radius * 0.7,
+                        0.01
+                );
+
+                // 살짝 일반 연기 섞어서 더 뿌연 느낌
+                player.getWorld().spawnParticle(
+                        Particle.SMOKE,
+                        ground.clone().add(0, 0.3, 0),
+                        40,
+                        radius * 0.6,
+                        0.4,
+                        radius * 0.6,
+                        0.01
+                );
                 player.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, ground, 6, radius * 0.5, 0.1, radius * 0.5, 0.01);
 
                 // ✅ 반경 내 엔티티에게 슬로우 + 독 부여 (고정된 center 기준)

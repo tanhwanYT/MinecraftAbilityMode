@@ -12,6 +12,8 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.Location;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,9 +78,59 @@ public class HitmanAbility implements Ability, Listener {
             player.sendMessage("§7[청부업자] 현재 청부대상이 없습니다.");
             return false;
         }
-        Player tp = Bukkit.getPlayer(t);
-        player.sendMessage("§c[청부업자] 현재 청부대상: §e" + (tp != null ? tp.getName() : "오프라인"));
-        return false;
+
+        Player target = Bukkit.getPlayer(t);
+        if (target == null || !target.isOnline() || target.isDead()) {
+            player.sendMessage("§7[청부업자] 청부대상이 오프라인/사망 상태입니다.");
+            return false;
+        }
+
+        // ✅ 나침반이 가리킬 위치 설정(같은 월드에서만 의미있음)
+        if (player.getWorld().equals(target.getWorld())) {
+            player.setCompassTarget(target.getLocation());
+        }
+
+        // ✅ 방향/거리 안내
+        Location pl = player.getLocation();
+        Location tl = target.getLocation();
+
+        String worldInfo = player.getWorld().equals(target.getWorld())
+                ? "§a같은 월드"
+                : "§c다른 월드(추적 불가)";
+
+        double dist = player.getWorld().equals(target.getWorld())
+                ? pl.distance(tl)
+                : -1;
+
+        String dir = player.getWorld().equals(target.getWorld())
+                ? getDirectionName(pl, tl)
+                : "-";
+
+        player.sendMessage("§c[청부업자] 현재 청부대상: §e" + target.getName());
+        player.sendMessage("§7- 월드: " + worldInfo);
+        if (dist >= 0) {
+            player.sendMessage("§7- 거리: §f" + (int) dist + "m §7/ 방향: §f" + dir + " §7(나침반 갱신)");
+        } else {
+            player.sendMessage("§7- 대상이 다른 월드라 거리/방향을 표시할 수 없습니다.");
+        }
+
+        return false; // 패시브라 실제 쿨/발동은 없음
+    }
+
+    private String getDirectionName(Location from, Location to) {
+        Vector dir = to.toVector().subtract(from.toVector());
+        double angle = Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ())); // MC 기준 보정
+        angle = (angle + 360) % 360;
+
+        if (angle < 22.5) return "북";
+        if (angle < 67.5) return "북동";
+        if (angle < 112.5) return "동";
+        if (angle < 157.5) return "남동";
+        if (angle < 202.5) return "남";
+        if (angle < 247.5) return "남서";
+        if (angle < 292.5) return "서";
+        if (angle < 337.5) return "북서";
+        return "북";
     }
 
     @EventHandler

@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SpeedingAbility implements Ability {
     // 밸런스
     private static final int ACTIVE_TICKS = 20 * 5;  // 5초 활성
-    private static final int SLOW_TICKS = 20 * 2;    // 2초 슬로우 패널티
+    private static final int SLOW_TICKS = 20 * 4;    // 4초 슬로우 패널티
     private static final Map<UUID, Integer> activeUntilTick = new ConcurrentHashMap<>();
     @Override
     public String id() { return "speeding"; }
@@ -58,7 +58,7 @@ public class SpeedingAbility implements Ability {
 
                 if (player.isOnline() && !player.isDead()) {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, SLOW_TICKS, 0, false, false, true));
-                    player.sendMessage("§c[속도위반] §f과속 단속! 2초간 감속...");
+                    player.sendMessage("§c[속도위반] §f과속 단속! 4초간 감속...");
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
                 }
             }

@@ -1,4 +1,4 @@
-﻿package my.pkg;
+package my.pkg;
 
 import my.pkg.abilities.*;
 import org.bukkit.plugin.java.JavaPlugin;
