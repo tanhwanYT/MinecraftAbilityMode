@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GlowAbility implements Ability {
 
-    private static final int TARGET_GLOW_TICKS = 20 * 6;        // 맞춘 상대 발광 6초
+    private static final int TARGET_GLOW_TICKS = 20 * 999;        // 맞춘 상대 발광 999초
 
     private static final int ON_TICKS = 10;   // 0.5초 ON
     private static final int OFF_TICKS = 10;  // 0.5초 OFF
@@ -31,7 +31,7 @@ public class GlowAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("라이징스타 : 당신은 항상 빛납니다. 대신 공격한 상대도 잠깐 빛나게 합니다.");
+        player.sendMessage("라이징스타 : 당신은 항상 빛납니다. 대신 공격한 상대도 죽을때까지 빛나게 합니다.");
         startBlink(system, player);
     }
 

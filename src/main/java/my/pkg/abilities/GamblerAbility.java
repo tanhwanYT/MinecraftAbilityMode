@@ -5,10 +5,17 @@ import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GamblerAbility implements Ability {
+
+    private NamespacedKey hpKey;
+    private static final double BONUS_HP = 4.0;
 
     @Override
     public String id() { return "gambler"; }
@@ -26,9 +33,16 @@ public class GamblerAbility implements Ability {
     }
 
     @Override
+    public void onRemove(AbilitySystem system, Player player) {
+        removeHpBonus(player);
+    }
+
+    @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("도박꾼 : 맨손으로 타격시 상대에게 1~5의 랜덤대미지를 입힙니다. 하지만 본인이 피해를 입을수도 있습니다.");
+        player.sendMessage("도박꾼 : '맨손' 공격 시 70% 확률로 상대에게 3~7의 랜덤 고정피해를 입힙니다. 하지만 30% 확률로 본인에게 대미지가 들어갈수있습니다.");
+        if (hpKey == null) hpKey = new NamespacedKey(system.getPlugin(), "gambler_hp_bonus");
+        applyHpBonus(player);
     }
 
     @Override
@@ -39,7 +53,7 @@ public class GamblerAbility implements Ability {
         // 맨손만
         if (attacker.getInventory().getItemInMainHand().getType() != Material.AIR) return;
 
-        int dmg = ThreadLocalRandom.current().nextInt(1, 9); // 1~8
+        int dmg = ThreadLocalRandom.current().nextInt(3, 7); // 3~7
         boolean backfire = ThreadLocalRandom.current().nextBoolean();
 
         if (backfire) {
@@ -59,5 +73,40 @@ public class GamblerAbility implements Ability {
             event.setDamage((double) dmg);
             attacker.sendMessage("§a[도박꾼] 적중! 상대에게 " + dmg + " 피해!");
         }
+    }
+    private void applyHpBonus(Player p) {
+        if (hpKey == null) return;
+
+        var attr = p.getAttribute(Attribute.MAX_HEALTH);
+        if (attr == null) return;
+
+        // 기존 모디파이어 제거(중복 방지)
+        attr.getModifiers().stream()
+                .filter(m -> hpKey.equals(m.getKey()))
+                .forEach(attr::removeModifier);
+
+        attr.addModifier(new AttributeModifier(
+                hpKey,
+                BONUS_HP,
+                AttributeModifier.Operation.ADD_NUMBER
+        ));
+
+        // 현재 체력이 최대체력보다 크면 보정
+        double max = p.getMaxHealth();
+        if (p.getHealth() > max) p.setHealth(max);
+    }
+
+    private void removeHpBonus(Player p) {
+        if (hpKey == null) return;
+
+        var attr = p.getAttribute(Attribute.MAX_HEALTH);
+        if (attr == null) return;
+
+        attr.getModifiers().stream()
+                .filter(m -> hpKey.equals(m.getKey()))
+                .forEach(attr::removeModifier);
+
+        double max = p.getMaxHealth();
+        if (p.getHealth() > max) p.setHealth(max);
     }
 }

@@ -14,6 +14,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
+import org.bukkit.GameMode;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -140,21 +141,6 @@ public class HitmanAbility implements Ability, Listener {
 
         UUID deadId = dead.getUniqueId();
 
-        // 1) 누군가의 청부대상이 죽었는지 확인 -> 새 대상 지정
-        for (UUID hitmanId : new HashSet<>(targetMap.keySet())) {
-            UUID curTarget = targetMap.get(hitmanId);
-            if (curTarget == null || !curTarget.equals(deadId)) continue;
-
-            Player hitman = Bukkit.getPlayer(hitmanId);
-            if (hitman != null) {
-                hitman.sendMessage("§7[청부업자] 청부대상(§e" + dead.getName() + "§7)이 사망. 새 대상을 지정합니다.");
-                pickNewTarget(hitman, false);
-            } else {
-                targetMap.remove(hitmanId);
-            }
-        }
-
-        // 2) “직접 죽인 플레이어”가 청부업자고, 그 상대가 내 청부대상이면 스택 증가
         if (killer != null) {
             UUID killerId = killer.getUniqueId();
             UUID targetId = targetMap.get(killerId);
@@ -165,6 +151,19 @@ public class HitmanAbility implements Ability, Listener {
 
                 killer.sendMessage("§a[청부업자] §f목표 처치 성공! 스택 §e" + cur + "§f (+최대체력/힘)");
                 applyStackBuff(killer);
+            }
+        }
+
+        for (UUID hitmanId : new HashSet<>(targetMap.keySet())) {
+            UUID curTarget = targetMap.get(hitmanId);
+            if (curTarget == null || !curTarget.equals(deadId)) continue;
+
+            Player hitman = Bukkit.getPlayer(hitmanId);
+            if (hitman != null) {
+                hitman.sendMessage("§7[청부업자] 청부대상(§e" + dead.getName() + "§7)이 사망. 새 대상을 지정합니다.");
+                pickNewTarget(hitman, false);
+            } else {
+                targetMap.remove(hitmanId);
             }
         }
     }
@@ -186,6 +185,7 @@ public class HitmanAbility implements Ability, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (p.equals(self)) continue;
             if (p.isDead()) continue;
+            if (p.getGameMode() == GameMode.SPECTATOR) continue;
             list.add(p);
         }
         if (list.isEmpty()) return null;

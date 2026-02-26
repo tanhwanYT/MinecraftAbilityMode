@@ -13,6 +13,8 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.Location;
+import org.bukkit.GameMode;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +37,10 @@ public class BodyguardAbility implements Ability, Listener {
     private static final int SPEED_AMP = 0;     // Speed I
     private static final int LONG_TICKS = 20 * 60 * 60; // 1시간(사실상 지속)
 
+    private static final int RANGE = 20;
+    private static final int CHECK_PERIOD_TICKS = 20; // 1초마다 체크
+    private static boolean rangeTaskStarted = false;
+
     public BodyguardAbility(JavaPlugin plugin) {
         this.plugin = plugin;
         this.HP_MOD_KEY = new NamespacedKey(plugin, "bodyguard_hp_bonus");
@@ -42,6 +48,11 @@ public class BodyguardAbility implements Ability, Listener {
         if (!listenerRegistered) {
             Bukkit.getPluginManager().registerEvents(this, plugin);
             listenerRegistered = true;
+        }
+
+        if (!rangeTaskStarted) {
+            startRangeCheckTask();
+            rangeTaskStarted = true;
         }
     }
 
@@ -78,8 +89,47 @@ public class BodyguardAbility implements Ability, Listener {
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
-        player.sendMessage("§7[보디가드] 패시브 능력입니다.");
-        return false;
+        UUID targetId = targetMap.get(player.getUniqueId());
+        if (targetId == null) {
+            player.sendMessage("§7[보디가드] 보호대상이 없습니다.");
+            return false;
+        }
+
+        Player target = Bukkit.getPlayer(targetId);
+        if (target == null || !target.isOnline() || target.isDead()) {
+            player.sendMessage("§7[보디가드] 보호대상이 현재 오프라인이거나 사망했습니다.");
+            return false;
+        }
+
+        if (player.getWorld() != target.getWorld()) {
+            player.sendMessage("§c[보디가드] 보호대상이 다른 월드에 있습니다.");
+            return false;
+        }
+
+        Location my = player.getLocation();
+        Location t = target.getLocation();
+
+        int dist = (int) Math.floor(my.distance(t));
+        String dir = getDirection8(my, t);
+
+        player.sendMessage("§a[보디가드] 보호대상 위치: §e" + target.getName()
+                + " §7(거리 " + dist + "m, 방향 " + dir + ")");
+
+        return true; // “사용 성공” 처리
+    }
+    private String getDirection8(Location from, Location to) {
+        double dx = to.getX() - from.getX();
+        double dz = to.getZ() - from.getZ();
+
+        // 월드 좌표 기준: +X=동, -X=서, +Z=남, -Z=북
+        double angle = Math.toDegrees(Math.atan2(dz, dx)); // -180~180
+        // 0=동, 90=남, 180/-180=서, -90=북
+
+        if (angle < 0) angle += 360;
+
+        String[] dirs = {"동", "남동", "남", "남서", "서", "북서", "북", "북동"};
+        int idx = (int) Math.round(angle / 45.0) % 8;
+        return dirs[idx];
     }
 
     @EventHandler
@@ -108,6 +158,7 @@ public class BodyguardAbility implements Ability, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (p.equals(self)) continue;
             if (p.isDead()) continue;
+            if (p.getGameMode() == GameMode.SPECTATOR) continue;
             list.add(p);
         }
         if (list.isEmpty()) return null;
@@ -138,8 +189,6 @@ public class BodyguardAbility implements Ability, Listener {
             double max = owner.getMaxHealth();
             if (owner.getHealth() > max) owner.setHealth(max);
         }
-
-        owner.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, LONG_TICKS, SPEED_AMP, true, false, true));
     }
 
     private void removeBuff(Player owner) {
@@ -154,5 +203,41 @@ public class BodyguardAbility implements Ability, Listener {
         }
 
         owner.removePotionEffect(PotionEffectType.SPEED);
+    }
+    private void startRangeCheckTask() {
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Map.Entry<UUID, UUID> e : new HashSet<>(targetMap.entrySet())) {
+                Player bodyguard = Bukkit.getPlayer(e.getKey());
+                Player target = Bukkit.getPlayer(e.getValue());
+
+                if (bodyguard == null || !bodyguard.isOnline()) continue;
+
+                // 대상이 없거나 오프라인/죽음 -> 신속 제거
+                if (target == null || !target.isOnline() || target.isDead()) {
+                    bodyguard.removePotionEffect(PotionEffectType.SPEED);
+                    continue;
+                }
+
+                // 월드 다르면 근처로 취급 X
+                if (bodyguard.getWorld() != target.getWorld()) {
+                    bodyguard.removePotionEffect(PotionEffectType.SPEED);
+                    continue;
+                }
+
+                // ✅ 20블록 이내일 때만 신속 적용
+                double distSq = bodyguard.getLocation().distanceSquared(target.getLocation());
+                if (distSq <= (RANGE * RANGE)) {
+                    // 짧게 갱신(2~3초)하는 방식이 안전함
+                    bodyguard.addPotionEffect(new PotionEffect(
+                            PotionEffectType.SPEED,
+                            20 * 3, // 3초
+                            SPEED_AMP,
+                            true, false, true
+                    ));
+                } else {
+                    bodyguard.removePotionEffect(PotionEffectType.SPEED);
+                }
+            }
+        }, 0L, CHECK_PERIOD_TICKS);
     }
 }

@@ -32,7 +32,7 @@ public class KiyathowAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("끼얏호우 : 능력사용시 폭죽이 터집니다. 플레이어는 8초동안 이동속도가 빨라지고, 추가체력과 재생버프, 점프강화를 얻습니다.");
+        player.sendMessage("끼얏호우 : 능력사용시 폭죽이 터집니다. 플레이어는 8초동안 이동속도가 빨라지고, 추가체력과 재생버프, 성급함, 점프강화를 얻습니다.");
     }
 
     @Override
@@ -67,8 +67,9 @@ public class KiyathowAbility implements Ability {
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, duration, 1, false, false));
         player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, duration, 1, false, false));
         player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, duration, 1, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, duration, 2, false, false));
-        // ↑ 노란 하트 8칸
+        player.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, duration, 1, false, false));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, duration, 1, false, false));
+        // ↑ 노란 하트 4칸
 
         int period = 5; // 5틱 = 0.25초
         system.getPlugin().getServer().getScheduler().runTaskTimer(system.getPlugin(), new Runnable() {

@@ -6,6 +6,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.GameMode;
 
 public class PanicAbility implements Ability {
 
@@ -21,7 +22,7 @@ public class PanicAbility implements Ability {
     public String name() { return "패닉"; }
 
     @Override
-    public int cooldownSeconds() { return 18; }
+    public int cooldownSeconds() { return 26; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
@@ -70,6 +71,8 @@ public class PanicAbility implements Ability {
         for (Player p : self.getWorld().getPlayers()) {
             if (p.equals(self)) continue;
             if (!p.isOnline() || p.isDead()) continue;
+
+            if (p.getGameMode() == GameMode.SPECTATOR) continue;
 
             double d2 = p.getLocation().distanceSquared(self.getLocation());
             if (d2 <= bestDist2) {

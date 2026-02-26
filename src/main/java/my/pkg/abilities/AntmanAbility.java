@@ -32,12 +32,30 @@ public class AntmanAbility implements Ability {
         AttributeInstance scaleAttr = player.getAttribute(Attribute.SCALE);
         if (scaleAttr != null) scaleAttr.setBaseValue(scale);
 
+
         AttributeInstance healthAttr = player.getAttribute(Attribute.MAX_HEALTH);
         double maxHealth = player.getMaxHealth();
+
         if (healthAttr != null) {
-            maxHealth = Math.max(4.0, 20.0 * scale);
-            healthAttr.setBaseValue(maxHealth);
-            if (player.getHealth() > maxHealth) player.setHealth(maxHealth);
+            double oldMax = player.getMaxHealth();
+            double oldHp = player.getHealth();
+            double ratio = (oldMax > 0.0) ? (oldHp / oldMax) : 1.0;
+
+            double newMax = Math.max(4.0, 20.0 * scale);
+
+            // 최대체력 적용
+            healthAttr.setBaseValue(newMax);
+
+            // ✅ 비율 유지해서 현재 체력도 같이 조정
+            double newHp = newMax * ratio;
+
+            // 혹시나 0.5 하트 같은 값 때문에 이상해지지 않게 최소 1, 최대 newMax로 클램프
+            if (newHp < 1.0) newHp = 1.0;
+            if (newHp > newMax) newHp = newMax;
+
+            player.setHealth(newHp);
+
+            maxHealth = newMax;
         }
         player.removePotionEffect(PotionEffectType.HASTE);
 

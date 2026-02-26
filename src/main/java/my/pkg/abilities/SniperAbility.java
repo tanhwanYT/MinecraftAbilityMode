@@ -28,9 +28,9 @@ public class SniperAbility implements Ability, Listener {
     private static boolean listenerRegistered = false;
 
     // ===== 밸런스 =====
-    private static final double RANGE = 50.0;         // 사거리 (늘림)
+    private static final double RANGE = 75.0;         // 사거리 (늘림)
     private static final double DAMAGE = 14.0;        // 대미지 (늘림) - 하트 7칸
-    private static final int COOLDOWN = 22;           // 쿨타임 (늘림)
+    private static final int COOLDOWN = 25;           // 쿨타임 (늘림)
 
     // ===== 시즈모드(조준) =====
     private static final int AIM_TICKS = 20 * 3;      // 3초 조준
@@ -103,7 +103,7 @@ public class SniperAbility implements Ability, Listener {
             if (aim.aimLoc != null) {
                 st.lastAimLoc = aim.aimLoc;
                 st.lastAimEntity = aim.hitEntity;
-                spawnRedAimLine(player.getEyeLocation(), st.lastAimLoc);
+                spawnRedHitMarker(st.lastAimLoc);
             }
 
             int sec = (st.leftTicks + 19) / 20;
@@ -248,23 +248,22 @@ public class SniperAbility implements Ability, Listener {
         player.sendMessage("§b[스나이퍼] §f발사!");
     }
 
-    // ====== 조준 중 빨간 잔상 ======
-    private void spawnRedAimLine(Location from, Location to) {
-        World w = from.getWorld();
+    private void spawnRedHitMarker(Location at) {
+        World w = at.getWorld();
         if (w == null) return;
 
-        Vector diff = to.toVector().subtract(from.toVector());
-        double dist = diff.length();
-        if (dist <= 0.01) return;
+        // 시야를 안 가리게: 소량 + 작은 퍼짐
+        Location p = at.clone().add(0, 0.05, 0);
 
-        Vector step = diff.normalize().multiply(STEP);
-        int points = (int) Math.ceil(dist / STEP);
+        // 중심 점
+        w.spawnParticle(Particle.DUST, p, 2, 0.02, 0.02, 0.02, 0.0, RED);
 
-        Location p = from.clone();
-        for (int i = 0; i < points; i++) {
-            // 빨간 조준선
-            w.spawnParticle(Particle.DUST, p, 1, 0, 0, 0, 0, RED);
-            p.add(step);
+        // 작은 링 느낌(너무 무겁지 않게 8점)
+        double r = 0.25;
+        for (int i = 0; i < 8; i++) {
+            double ang = (Math.PI * 2.0) * i / 8.0;
+            Location ring = p.clone().add(Math.cos(ang) * r, 0.0, Math.sin(ang) * r);
+            w.spawnParticle(Particle.DUST, ring, 1, 0.01, 0.01, 0.01, 0.0, RED);
         }
     }
 

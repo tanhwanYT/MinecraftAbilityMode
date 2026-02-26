@@ -23,7 +23,7 @@ public class SpeedingAbility implements Ability {
     public String name() { return "속도위반"; }
 
     @Override
-    public int cooldownSeconds() { return 12; } // 패시브라 의미 없음
+    public int cooldownSeconds() { return 25; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {

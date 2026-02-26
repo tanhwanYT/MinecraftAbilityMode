@@ -20,9 +20,9 @@ import my.pkg.AbilitySystem;
 public class donationAbility implements Ability, Listener {
 
     // ====== 설정 ======
-    private static final int RANGE = 6;            // 시선 대상 거리
+    private static final int RANGE = 10;            // 시선 대상 거리
     private static final int REQUIRED_SHIFT = 10;  // 쉬프트 몇 번 눌러야 해제?
-    private static final int STUN_SECONDS = 8;     // 최대 스턴 시간(초). 0이면 시간제한 없음
+    private static final int STUN_SECONDS = 20;     // 최대 스턴 시간(초). 0이면 시간제한 없음
 
     // ====== 상태 저장 (타겟 UUID -> 상태) ======
     private static final Map<UUID, DonateState> stunned = new ConcurrentHashMap<>();

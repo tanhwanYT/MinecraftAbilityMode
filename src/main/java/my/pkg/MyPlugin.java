@@ -5,11 +5,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MyPlugin extends JavaPlugin {
     private AbilitySystem abilitySystem;
+    private GameManager gameManager;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        this.abilitySystem = new AbilitySystem(this);
+        this.gameManager = new GameManager(this);
+        this.abilitySystem = new AbilitySystem(this, gameManager);
 
         abilitySystem.register(new MalphiteAbility());
         abilitySystem.register(new ViperAbility());
@@ -28,6 +30,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new HitmanAbility(this));
 
         abilitySystem.registerListeners();
+        getServer().getPluginManager().registerEvents(gameManager, this);
         getCommand("ability").setExecutor(abilitySystem);
     }
 

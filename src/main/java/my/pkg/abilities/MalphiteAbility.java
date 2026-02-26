@@ -24,7 +24,7 @@ public class MalphiteAbility implements Ability {
 
     @Override
     public int cooldownSeconds() {
-        return 12;
+        return 30;
     }
 
     @Override
@@ -70,7 +70,7 @@ public class MalphiteAbility implements Ability {
             );
 
             // 반경 2칸 내 모든 LivingEntity 공격
-            for (Entity entity : player.getWorld().getNearbyEntities(center, 2, 2, 2)) {
+            for (Entity entity : player.getWorld().getNearbyEntities(center, 3, 3, 3)) {
                 if (!(entity instanceof LivingEntity target)) continue;
                 if (target.equals(player)) continue;
 

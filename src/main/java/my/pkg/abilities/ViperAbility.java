@@ -26,13 +26,13 @@ public class ViperAbility implements Ability {
 
     @Override
     public int cooldownSeconds() {
-        return 30; // 원하는대로 조절
+        return 50; // 원하는대로 조절
     }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("바이퍼 : 능력사용시 자신의 반경 7칸에 독가스지대를 생성합니다. 독가스 지대는 상대에게 슬로우와 독 피해를 입힙니다.");
+        player.sendMessage("바이퍼 : 능력사용시 자신의 반경 9칸에 독가스지대를 생성합니다. 독가스 지대는 상대에게 슬로우와 독 피해를 입힙니다.");
     }
 
     @Override
@@ -41,7 +41,7 @@ public class ViperAbility implements Ability {
 
         // 생성 위치 고정 (중요)
         Location center = player.getLocation().clone();
-        double radius = 7.0;
+        double radius = 9.0;
 
         // 연출
         player.getWorld().playSound(center, Sound.BLOCK_BEACON_ACTIVATE, 0.6f, 1.3f);
@@ -122,8 +122,8 @@ public class ViperAbility implements Ability {
                     if (target.getLocation().distanceSquared(center) > radius * radius) continue;
 
                     // 효과 부여 (짧게 걸고 계속 갱신하는 방식)
-                    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1, false, true)); // 2초, Slowness II
-                    target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 0, false, true));   // 2초, Poison I
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1, false, true)); // 2초, Slowness II
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 90, 1, false, true));   // 2초, Poison I
                 }
 
                 lived += periodTicks;

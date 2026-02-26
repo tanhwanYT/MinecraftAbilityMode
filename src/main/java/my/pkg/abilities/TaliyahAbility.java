@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 
 import java.util.*;
 
@@ -77,6 +78,9 @@ public class TaliyahAbility implements Ability {
         }
         final Vector dir = tempDir.clone();  // ✅ final로 확정
 
+        w.playSound(start, Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.6f);
+        w.playSound(start, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 0.8f);
+
         // 벽의 가로 방향(좌우) = 진행방향에 수직
         Vector right = dir.clone().crossProduct(new Vector(0, 1, 0)).normalize();
 
@@ -120,6 +124,9 @@ public class TaliyahAbility implements Ability {
                         TempBlocks tb = active.remove(uid);
                         if (tb != null) tb.revertAll();
                     }, REVERT_DELAY_TICKS);
+
+                    w.playSound(cur, Sound.ENTITY_GENERIC_EXPLODE, 0.4f, 1.7f);
+                    w.playSound(cur, Sound.BLOCK_BEACON_DEACTIVATE, 0.6f, 1.2f);
 
                     // 사용은 끝났지만 벽은 남아있다가 나중에 사라짐
                     this.cancel();

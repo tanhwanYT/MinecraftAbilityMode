@@ -5,11 +5,15 @@ import java.util.Map;
 import java.util.UUID;
 import my.pkg.abilities.Ability;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,6 +24,15 @@ import java.util.Random;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.GameMode;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import java.util.Map;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
@@ -30,10 +43,23 @@ public class AbilitySystem implements Listener, CommandExecutor {
     // 플레이어별 상태(능력/쿨타임) 저장
     private final Map<UUID, PlayerState> states = new HashMap<>();
 
-    public AbilitySystem(JavaPlugin plugin) {
-        this.plugin = plugin;
-    }
+    private final GameManager gameManager;
 
+    private final NamespacedKey trackerCompassKey;
+
+    private BukkitTask trackerTask;
+    private final NamespacedKey rerollKey;
+
+    private static final int LAPIS_COUNT = 16; // n값
+    private static final int XP_AMOUNT = 300;   // n값 (레벨 아님, exp 포인트)
+
+    public AbilitySystem(JavaPlugin plugin, GameManager gameManager) {
+        this.plugin = plugin;
+        this.gameManager = gameManager;
+        this.rerollKey = new NamespacedKey(plugin, "reroll_ticket");
+        this.trackerCompassKey = new NamespacedKey(plugin, "tracker_compass");
+
+    }
     public JavaPlugin getPlugin() {
         return plugin;
     }
@@ -71,6 +97,66 @@ public class AbilitySystem implements Listener, CommandExecutor {
             // 신규 능력 지급 훅 호출
             ability.onGrant(this, player);
         }
+    }
+
+    private ItemStack createTrackerCompass(int amount) {
+        ItemStack item = new ItemStack(Material.COMPASS, Math.max(1, amount));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§c§l추적 나침반");
+            meta.setLore(List.of(
+                    "§7들고 있으면 가장 가까운 플레이어를 가리킵니다."
+            ));
+            meta.getPersistentDataContainer().set(trackerCompassKey, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private boolean isTrackerCompass(ItemStack item) {
+        if (item == null || item.getType() != Material.COMPASS) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        Byte v = meta.getPersistentDataContainer().get(trackerCompassKey, PersistentDataType.BYTE);
+        return v != null && v == (byte) 1;
+    }
+
+    private Player findNearestPlayer(Player from) {
+        Player nearest = null;
+        double bestDistSq = Double.MAX_VALUE;
+
+        for (Player p : from.getWorld().getPlayers()) {
+            if (p.equals(from)) continue;
+            if (!p.isOnline() || p.isDead()) continue;
+
+            // ✅ 관전자 제외
+            if (p.getGameMode() == GameMode.SPECTATOR) continue;
+
+            double d = p.getLocation().distanceSquared(from.getLocation());
+            if (d < bestDistSq) {
+                bestDistSq = d;
+                nearest = p;
+            }
+        }
+        return nearest;
+    }
+
+    private void startTrackerTask() {
+        if (trackerTask != null) trackerTask.cancel();
+
+        trackerTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                if (p.getGameMode() == GameMode.SPECTATOR) continue;
+
+                ItemStack main = p.getInventory().getItemInMainHand();
+                if (!isTrackerCompass(main)) continue;
+
+                Player nearest = findNearestPlayer(p);
+                if (nearest != null) {
+                    p.setCompassTarget(nearest.getLocation());
+                }
+            }
+        }, 0L, 10L); // 10틱(0.5초)마다 갱신
     }
 
     private void startCooldownActionBar(Player player, PlayerState state, Ability ability) {
@@ -120,7 +206,7 @@ public class AbilitySystem implements Listener, CommandExecutor {
     }
 
     @EventHandler
-    public void onMove(org.bukkit.event.player.PlayerMoveEvent event) {
+    public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
         PlayerState state = getState(player);
         if (state.getAbility() == null) return;
@@ -136,13 +222,43 @@ public class AbilitySystem implements Listener, CommandExecutor {
     }
 
     @EventHandler
-    public void onAttack(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+    public void onAttack(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)) return;
 
         PlayerState state = getState(player);
         if (state.getAbility() == null) return;
 
         state.getAbility().onAttack(this, event);
+    }
+
+    private ItemStack createRerollTicket(int amount) {
+        ItemStack item = new ItemStack(Material.PAPER, Math.max(1, amount));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§b§l리롤권");
+            meta.setLore(List.of(
+                    "§7리롤권을 손에 들고 우클릭하면",
+                    "§e능력이 랜덤으로 변경됩니다."
+            ));
+
+            // 반짝이
+            meta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+            // ✅ 진짜 리롤권인지 식별용 PDC
+            meta.getPersistentDataContainer().set(rerollKey, PersistentDataType.BYTE, (byte) 1);
+
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private boolean isRerollTicket(ItemStack item) {
+        if (item == null || item.getType() != Material.PAPER) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        Byte v = meta.getPersistentDataContainer().get(rerollKey, PersistentDataType.BYTE);
+        return v != null && v == (byte) 1;
     }
 
     @Override
@@ -192,6 +308,40 @@ public class AbilitySystem implements Listener, CommandExecutor {
             return true;
         }
 
+
+
+        if (args[0].equalsIgnoreCase("rerollall")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
+            if (registry.isEmpty()) {
+                sender.sendMessage("No abilities registered.");
+                return true;
+            }
+
+            List<Ability> abilities = new ArrayList<>(registry.values());
+            Random random = new Random();
+
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                Ability newAbility = abilities.get(random.nextInt(abilities.size()));
+
+                // 쿨타임 액션바 표시/태스크 정리까지 포함해서 교체
+                PlayerState state = getState(p);
+                if (state.cooldownTask != null) {
+                    state.cooldownTask.cancel();
+                    state.cooldownTask = null;
+                }
+                p.sendActionBar("");
+
+                grant(p, newAbility);
+                p.sendMessage("§e[전체리롤] §f능력이 §a" + newAbility.name() + "§f(으)로 변경!");
+            }
+
+            sender.sendMessage("§aRerolled abilities for all online players (no items given).");
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("start")) {
             if (!sender.isOp()) {
                 sender.sendMessage("OP only.");
@@ -211,21 +361,71 @@ public class AbilitySystem implements Listener, CommandExecutor {
                 Ability randomAbility = abilities.get(random.nextInt(abilities.size()));
                 grant(p, randomAbility);
                 p.sendMessage("§a[능력] " + randomAbility.name() + " 능력이 부여되었습니다!");
+
+                p.getInventory().addItem(createRerollTicket(1));
+                p.sendMessage("§b[리롤권] 1개가 지급되었습니다!");
+
+                p.getInventory().addItem(createTrackerCompass(1));
+                p.sendMessage("§c[추적 나침반] 1개가 지급되었습니다!");
+
+                giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, LAPIS_COUNT)); // 청금석 n개
+                giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));            // 철 29개
+                giveOrDrop(p, new ItemStack(Material.STICK, 1));                  // 막대기 1개
+                giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 64));            // 양털 한셋(흰양털 64)
+                giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));            // 네더의 별
+
+                p.giveExp(XP_AMOUNT); // XP n (포인트 단위)
+
+                gameManager.startGame();
             }
 
             sender.sendMessage("Ability game started! Random abilities assigned.");
             return true;
         }
+
+        //리롤권 부여 ability rerollitem 1
+        if (args[0].equalsIgnoreCase("rerollitem")) {
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage("Players only.");
+                return true;
+            }
+            if (!p.isOp()) {
+                p.sendMessage("OP only.");
+                return true;
+            }
+
+            int amount = 1;
+            if (args.length >= 2) {
+                try {
+                    amount = Integer.parseInt(args[1]);
+                } catch (NumberFormatException ignored) {}
+            }
+
+            p.getInventory().addItem(createRerollTicket(amount));
+            p.sendMessage("§a리롤권 " + amount + "개를 지급했습니다.");
+            return true;
+        }
         return true;
+    }
+
+    private void giveOrDrop(Player p, ItemStack item) {
+        Map<Integer, ItemStack> leftover = p.getInventory().addItem(item);
+        if (!leftover.isEmpty()) {
+            leftover.values().forEach(it -> p.getWorld().dropItemNaturally(p.getLocation(), it));
+        }
     }
 
     public void registerListeners() {
         // 발동 입력 리스너 등록 (AbilitySystem 자체가 Listener)
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        startTrackerTask();
     }
 
     public void shutdown() {
-        // 상태만 정리 (저장/로드는 필요 시 추가)
+        if (trackerTask != null) {
+            trackerTask.cancel();
+            trackerTask = null;
+        }
         states.clear();
     }
 
@@ -233,17 +433,56 @@ public class AbilitySystem implements Listener, CommandExecutor {
     public void onInteract(PlayerInteractEvent event) {
 
         // ✅ 메인핸드 이벤트만 처리 (오프핸드 중복 발동 방지)
-        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
 
         // 발동 트리거: 네더스타 우클릭
         if (event.getItem() == null) return;
 
         Action action = event.getAction();
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
 
+        // ✅ 리롤권 처리(양손 + 우클릭)
+        if (isRerollTicket(item)) {
+            // "양손 들기" 판정: 오프핸드가 비어있지 않으면(=양손에 뭔가 든 상태)
+            ItemStack off = player.getInventory().getItemInOffHand();
+            boolean holdingTwoHands = off != null && off.getType() != Material.AIR;
+
+            // 능력 랜덤 변경
+            PlayerState state = getState(player);
+
+            if (registry.isEmpty()) {
+                player.sendMessage("§c[리롤권] 등록된 능력이 없습니다.");
+                return;
+            }
+
+            // 기존 능력 제외하고 뽑고 싶으면 여기서 필터 가능
+            List<Ability> abilities = new ArrayList<>(registry.values());
+            Ability newAbility = abilities.get(new Random().nextInt(abilities.size()));
+
+            // ✅ 1장 소모
+            item.setAmount(item.getAmount() - 1);
+
+            // ✅ 쿨타임 표시 제거
+            if (state.cooldownTask != null) {
+                state.cooldownTask.cancel();
+                state.cooldownTask = null;
+            }
+            player.sendActionBar("");
+
+            // ✅ 능력 교체
+            grant(player, newAbility);
+
+            player.sendMessage("§b[리롤권] §f능력이 §a" + newAbility.name() + "§f(으)로 변경되었습니다!");
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.6f);
+
+            // 네더스타 발동이랑 겹치지 않게 이벤트 종료
+            event.setCancelled(true);
+            return;
+        }
         if (event.getItem().getType() != Material.NETHER_STAR) return;
 
-        Player player = event.getPlayer();
         PlayerState state = getState(player);
         if (state.ability == null) {
             player.sendMessage("당신은 무능력자입니다.");
