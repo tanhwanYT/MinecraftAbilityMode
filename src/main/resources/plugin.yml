@@ -7,3 +7,7 @@ commands:
   ability:
     description: Ability commands
     usage: /ability <me|give|start>
+  supply:
+    description: Supply items command
+    usage: /supply
+    permission: op

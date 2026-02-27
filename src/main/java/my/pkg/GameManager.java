@@ -27,6 +27,7 @@ public class GameManager implements Listener {
 
     public enum Phase { IDLE, PREP, RUNNING, SHOWDOWN, ENDED }
 
+    private final SupplyManager supplyManager;
     // ===== 목숨 시스템 =====
     private static final int START_LIVES = 2;
     private final Map<UUID, Integer> lives = new ConcurrentHashMap<>();
@@ -57,8 +58,8 @@ public class GameManager implements Listener {
     private final Set<UUID> alive = ConcurrentHashMap.newKeySet();
 
     // ====== 설정값 ======
-    private static final int PREP_SEC = 1 * 60;            // 준비 4분
-    private static final int SHRINK_INTERVAL_SEC = 1 * 60; // 축소 주기 4분
+    private static final int PREP_SEC = 1 * 240;            // 준비 4분
+    private static final int SHRINK_INTERVAL_SEC = 1 * 180; // 축소 주기 4분
     private static final int SHOWDOWN_AFTER_SEC = 3 * 60; // RUNNING 시작 후 12분
 
     // 보더 단계(원하는대로 수정)
@@ -67,14 +68,14 @@ public class GameManager implements Listener {
     // 쇼다운 장소(원하는 좌표로 바꿔)
     private final Location showdownLocA;
     private final Location showdownLocB;
-    private static final int PREP_EFFECT_TICKS = (1 * 60 + 5) * 20; // 4분 + 여유 5초
+    private static final int PREP_EFFECT_TICKS = (1 * 240 + 5) * 20; // 4분 + 여유 5초
 
     private void applyPrepBuffs() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!isAlive(p)) continue;
 
             // 저항 II (원하면 0=I, 1=II)
-            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PREP_EFFECT_TICKS, 1, true, false, true));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PREP_EFFECT_TICKS, 4, true, false, true));
 
             // 포화 (앰프 0이면 충분)
             p.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, PREP_EFFECT_TICKS, 0, true, false, true));
@@ -92,7 +93,8 @@ public class GameManager implements Listener {
         }
     }
 
-    public GameManager(JavaPlugin plugin) {
+    public GameManager(SupplyManager supplyManager, JavaPlugin plugin) {
+        this.supplyManager = supplyManager;
         this.plugin = plugin;
 
         World w = Bukkit.getWorlds().get(0); // 기본 월드
@@ -123,6 +125,7 @@ public class GameManager implements Listener {
         pendingRespawn.clear();
         initBossBar();
 
+        if (supplyManager != null) supplyManager.start();
         // 온라인 플레이어 세팅
         for (Player p : Bukkit.getOnlinePlayers()) {
             setAlivePlayer(p);

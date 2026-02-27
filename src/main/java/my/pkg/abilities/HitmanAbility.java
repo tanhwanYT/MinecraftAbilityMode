@@ -34,6 +34,7 @@ public class HitmanAbility implements Ability, Listener {
     private static final double HP_PER_STACK = 2.0;     // 1칸 = 2 health
     private static final int LONG_TICKS = 20 * 60 * 60; // 사실상 지속
     private static final int MAX_STRENGTH_LEVEL = 5;    // Strength V까지 제한(원하면 수정)
+    private static final int STACKS_PER_STRENGTH = 2;
 
     // ✅ 1.21+ AttributeModifier는 NamespacedKey로 식별
     private final NamespacedKey hpKey;
@@ -221,7 +222,7 @@ public class HitmanAbility implements Ability, Listener {
         p.removePotionEffect(PotionEffectType.STRENGTH);
 
         if (s > 0) {
-            int level = Math.min(s, MAX_STRENGTH_LEVEL); // 1~MAX
+            int level = Math.min((s + STACKS_PER_STRENGTH - 1) / STACKS_PER_STRENGTH, MAX_STRENGTH_LEVEL); // 1~MAX
             int amp = level - 1; // amplifier: 0=I, 1=II ...
             p.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, LONG_TICKS, amp, true, false, true));
         }
