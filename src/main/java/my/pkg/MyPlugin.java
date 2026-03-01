@@ -39,6 +39,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new GlowAbility());
         abilitySystem.register(new BodyguardAbility(this));
         abilitySystem.register(new HitmanAbility(this));
+        abilitySystem.register(new SetAbility(this));
+        abilitySystem.register(new SlotMachineAbility(this));
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();

@@ -363,16 +363,15 @@ public class AbilitySystem implements Listener, CommandExecutor {
                 p.sendMessage("§a[능력] " + randomAbility.name() + " 능력이 부여되었습니다!");
 
                 p.getInventory().addItem(createRerollTicket(1));
-                p.sendMessage("§b[리롤권] 1개가 지급되었습니다!");
 
                 p.getInventory().addItem(createTrackerCompass(1));
-                p.sendMessage("§c[추적 나침반] 1개가 지급되었습니다!");
 
                 giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, LAPIS_COUNT)); // 청금석 n개
                 giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));            // 철 29개
                 giveOrDrop(p, new ItemStack(Material.STICK, 1));                  // 막대기 1개
                 giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 64));            // 양털 한셋(흰양털 64)
                 giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));            // 네더의 별
+                giveOrDrop(p, new ItemStack(Material.BREAD, 128));            // 빵
 
                 p.giveExp(XP_AMOUNT); // XP n (포인트 단위)
 
