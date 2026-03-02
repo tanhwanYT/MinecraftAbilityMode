@@ -35,6 +35,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Map;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.event.player.PlayerMoveEvent;
 
 public class AbilitySystem implements Listener, CommandExecutor {
     private final JavaPlugin plugin;

@@ -41,6 +41,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new HitmanAbility(this));
         abilitySystem.register(new SetAbility(this));
         abilitySystem.register(new SlotMachineAbility(this));
+        abilitySystem.register(new StoneAbility(this));
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();
