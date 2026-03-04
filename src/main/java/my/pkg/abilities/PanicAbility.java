@@ -7,6 +7,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.GameMode;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class PanicAbility implements Ability {
 
@@ -50,6 +57,9 @@ public class PanicAbility implements Ability {
         applyPanicDebuff(player);
         applyPanicDebuff(target);
 
+        shuffleInventory(player);
+        shuffleInventory(target);
+
         player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.2f);
         target.playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.2f);
 
@@ -81,5 +91,32 @@ public class PanicAbility implements Ability {
             }
         }
         return best;
+    }
+
+    private void shuffleInventory(Player p) {
+        PlayerInventory inv = p.getInventory();
+
+        // 섞을 슬롯: 0~35 (핫바+메인). 36~40은 갑옷, 40은 오프핸드(버전에 따라 다름)라서 제외
+        List<Integer> slots = new ArrayList<>();
+        for (int i = 0; i <= 35; i++) slots.add(i);
+
+        // 아이템들을 뽑아서 리스트로 만들고 셔플
+        List<ItemStack> items = new ArrayList<>(slots.size());
+        for (int slot : slots) {
+            items.add(inv.getItem(slot));
+        }
+
+        Collections.shuffle(items, ThreadLocalRandom.current());
+
+        // 다시 꽂기
+        for (int i = 0; i < slots.size(); i++) {
+            inv.setItem(slots.get(i), items.get(i));
+        }
+
+        // 클라 동기화
+        p.updateInventory();
+
+        // 피드백(선택)
+        p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1.7f);
     }
 }

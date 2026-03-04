@@ -42,6 +42,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new SetAbility(this));
         abilitySystem.register(new SlotMachineAbility(this));
         abilitySystem.register(new StoneAbility(this));
+        abilitySystem.register(new ParlemoAbility(this));
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();

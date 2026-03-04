@@ -64,7 +64,6 @@ public class StoneAbility implements Ability {
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
-        // 패시브 능력이라 우클릭 발동은 없음(인터페이스 요구로만 구현)
         player.sendMessage("§7[돌] §f패시브 능력입니다. 같은 자리(3x3)에 서 있으면 자동으로 강화됩니다.");
         return false; // 쿨타임 소비/발동 처리 안 하려면 false
     }
@@ -119,6 +118,7 @@ public class StoneAbility implements Ability {
                     if (!decaying.contains(id)) {
                         Anchor a = anchors.get(id);
                         if (a != null) {
+                            showZone(p, a);
                             long next = nextGainAtMs.getOrDefault(id, now + (GAIN_SECONDS * 1000L));
                             if (now >= next) {
                                 int curBonus = bonusHearts.getOrDefault(id, 0);
@@ -178,6 +178,34 @@ public class StoneAbility implements Ability {
     }
 
     // ===== 도우미 =====
+
+    private void showZone(Player p, Anchor a) {
+        World w = p.getWorld();
+        if (!w.getUID().equals(a.worldId)) return;
+
+        // 바닥 기준 Y (발밑에서 살짝 띄움)
+        double y = p.getLocation().getBlockY() + 0.05;
+
+        int cx = a.bx;
+        int cz = a.bz;
+
+        // 3x3 테두리 좌표들 (총 8개 코너/변)
+        int[][] edge = {
+                {cx - 1, cz - 1}, {cx, cz - 1}, {cx + 1, cz - 1},
+                {cx - 1, cz},                 {cx + 1, cz},
+                {cx - 1, cz + 1}, {cx, cz + 1}, {cx + 1, cz + 1}
+        };
+        for (int[] pos : edge) {
+            double px = pos[0] + 0.5;
+            double pz = pos[1] + 0.5;
+
+            Location loc = new Location(w, px, y, pz);
+
+            w.spawnParticle(Particle.END_ROD, loc, 1, 0, 0, 0, 0);
+            // 바닥에 영역감 조금(원하면 주석)
+            w.spawnParticle(Particle.CLOUD, loc, 1, 0.05, 0.0, 0.05, 0.0);
+        }
+    }
 
     private void setNewAnchor(Player p) {
         UUID id = p.getUniqueId();
