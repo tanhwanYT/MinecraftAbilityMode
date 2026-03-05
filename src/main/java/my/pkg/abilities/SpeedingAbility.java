@@ -16,6 +16,15 @@ public class SpeedingAbility implements Ability {
     private static final int ACTIVE_TICKS = 20 * 5;  // 5초 활성
     private static final int SLOW_TICKS = 20 * 4;    // 4초 슬로우 패널티
     private static final Map<UUID, Integer> activeUntilTick = new ConcurrentHashMap<>();
+    // 밀치기 쿨(연타 방지)
+    private static final long BUMP_CD_MS = 350;
+    private static final Map<UUID, Long> lastBumpAt = new ConcurrentHashMap<>();
+
+    // 밀치기 세기
+    private static final double BUMP_RANGE = 1.15;
+    private static final double BUMP_POWER = 0.85; // xz 힘
+    private static final double BUMP_Y = 0.25;     // 살짝 띄우기
+
     @Override
     public String id() { return "speeding"; }
 
@@ -71,6 +80,8 @@ public class SpeedingAbility implements Ability {
     public void onMove(AbilitySystem system, PlayerMoveEvent event) {
         Player p = event.getPlayer();
 
+
+
         // 활성 상태가 아니면 아무것도 안 함
         int nowTick = (int) system.getPlugin().getServer().getCurrentTick();
         Integer until = activeUntilTick.get(p.getUniqueId());
@@ -81,13 +92,56 @@ public class SpeedingAbility implements Ability {
         if (under == Material.YELLOW_WOOL) {
             // 활성 중에 노란 양털 밟으면 스피드 갱신
             p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20, 2, false, false, true));
+
+            // ✅ 신속 중 충돌 밀치기
+            tryBumpPlayers(p);
         }
+    }
+
+    private void tryBumpPlayers(Player p) {
+        long now = System.currentTimeMillis();
+
+        Long last = lastBumpAt.get(p.getUniqueId());
+        if (last != null && now - last < BUMP_CD_MS) return; // 연타 방지
+
+        // 주변 플레이어 중 가장 가까운 1명만 밀치기(과도한 OP 방지)
+        Player closest = null;
+        double best = BUMP_RANGE * BUMP_RANGE;
+
+        for (Player other : p.getWorld().getPlayers()) {
+            if (other.equals(p)) continue;
+            if (!other.isOnline() || other.isDead()) continue;
+
+            double d2 = other.getLocation().distanceSquared(p.getLocation());
+            if (d2 <= best) {
+                best = d2;
+                closest = other;
+            }
+        }
+
+        if (closest == null) return;
+
+        // 방향: 내 진행 방향(시야) 기반으로 밀쳐내기
+        // (정면 박치기 느낌이 강함)
+        org.bukkit.util.Vector dir = p.getLocation().getDirection().setY(0).normalize();
+        if (dir.lengthSquared() < 0.0001) return;
+
+        org.bukkit.util.Vector knock = dir.multiply(BUMP_POWER);
+        knock.setY(BUMP_Y);
+
+        closest.setVelocity(knock);
+
+        // 피드백
+        p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.6f, 1.3f);
+        closest.playSound(closest.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_HURT, 0.4f, 1.4f);
+
+        lastBumpAt.put(p.getUniqueId(), now);
     }
 
     @Override
     public void onRemove(AbilitySystem system, Player player) {
         activeUntilTick.remove(player.getUniqueId());
-        // 남아있을 수 있는 효과 정리(선택)
+        lastBumpAt.remove(player.getUniqueId());
         player.removePotionEffect(PotionEffectType.SPEED);
     }
 }
