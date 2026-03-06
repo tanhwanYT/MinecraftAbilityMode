@@ -19,6 +19,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -84,6 +85,8 @@ public class SupplyManager implements Listener {
         add(new EnderPearlItem());
         add(new MidasHandItem(itemIdKey));
         add(new GamblerDiamondItem(itemIdKey));
+        add(new ScientistSecretItem(itemIdKey));
+        add(new AdaptiveShieldItem(itemIdKey));
     }
 
     private void add(SupplyItem item) { items.put(item.id(), item); }
@@ -97,6 +100,8 @@ public class SupplyManager implements Listener {
         loot.add(new Weighted("trap", 10));
         loot.add(new Weighted("midas_hand", 6));
         loot.add(new Weighted("gambler_diamond", 4));
+        loot.add(new Weighted("scientist_secret", 5));
+        loot.add(new Weighted("adaptive_shield", 8));
     }
 
     private void spawnCrateNearRandomPlayer() {
@@ -217,6 +222,13 @@ public class SupplyManager implements Listener {
         String id = getSupplyId(hand);
         SupplyItem item = items.get(id);
         if (item != null) item.onRightClick(plugin, e.getPlayer(), e);
+    }
+
+    @EventHandler
+    public void onSwap(PlayerSwapHandItemsEvent e) {
+        for (SupplyItem item : items.values()) {
+            item.onSwapHand(plugin, e);
+        }
     }
 
     @EventHandler

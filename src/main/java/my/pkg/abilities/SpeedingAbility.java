@@ -37,7 +37,7 @@ public class SpeedingAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다. 끝나면 2초간 느려집니다");
+        player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다. 플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
     }
 
     @Override

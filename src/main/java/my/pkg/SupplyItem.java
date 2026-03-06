@@ -6,6 +6,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -17,4 +18,5 @@ public interface SupplyItem {
     default void onHitEntity(JavaPlugin plugin, Player attacker, LivingEntity victim, EntityDamageByEntityEvent e) {}
     default void onProjectileHit(JavaPlugin plugin, ProjectileHitEvent e) {}
     default void onPlayerMove(JavaPlugin plugin, PlayerMoveEvent e) {}
+    default void onSwapHand(JavaPlugin plugin, PlayerSwapHandItemsEvent event) {}
 }

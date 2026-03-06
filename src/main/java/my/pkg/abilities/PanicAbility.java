@@ -33,7 +33,7 @@ public class PanicAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("패닉 : 우클릭 시 가장 가까운 플레이어와 위치가 바뀝니다.");
+        player.sendMessage("패닉 : 우클릭 시 가장 가까운 플레이어와 위치가 바뀝니다. 대상과 본인에게 혼란/실명/인벤토리 룰렛 디버프를 가합니다.");
     }
 
     @Override

@@ -63,9 +63,64 @@ public class StoneAbility implements Ability {
     }
 
     @Override
+    public void onRemove(AbilitySystem system, Player player) {
+        UUID id = player.getUniqueId();
+
+        anchors.remove(id);
+        bonusHearts.remove(id);
+        nextGainAtMs.remove(id);
+        nextDecayAtMs.remove(id);
+        decaying.remove(id);
+
+        AttributeInstance attr = player.getAttribute(Attribute.MAX_HEALTH);
+        Double base = baseMaxHealth.remove(id);
+        if (attr != null && base != null) {
+            attr.setBaseValue(base);
+            if (player.getHealth() > base) {
+                player.setHealth(base);
+            }
+        }
+    }
+
+    @Override
     public boolean activate(AbilitySystem system, Player player) {
-        player.sendMessage("§7[돌] §f패시브 능력입니다. 같은 자리(3x3)에 서 있으면 자동으로 강화됩니다.");
-        return false; // 쿨타임 소비/발동 처리 안 하려면 false
+        UUID id = player.getUniqueId();
+        long now = System.currentTimeMillis();
+
+        // 감소 중
+        if (decaying.contains(id)) {
+            long next = nextDecayAtMs.getOrDefault(id, now + (DECAY_SECONDS * 1000L));
+            long remainMs = Math.max(0, next - now);
+            int remainSec = (int) Math.ceil(remainMs / 1000.0);
+            int curBonus = bonusHearts.getOrDefault(id, 0);
+
+            player.sendMessage("§7[돌] §f감소 중입니다. §c" + remainSec + "초§f 후 체력 보너스가 1하트 줄어듭니다. " +
+                    "§7(현재 보너스: §a" + curBonus + "하트§7)");
+            return false;
+        }
+
+        Anchor a = anchors.get(id);
+        if (a == null) {
+            player.sendMessage("§7[돌] §f아직 정착 중이 아닙니다.");
+            return false;
+        }
+
+        int curBonus = bonusHearts.getOrDefault(id, 0);
+
+        // 이미 최대치
+        if (curBonus >= MAX_BONUS_HEARTS) {
+            player.sendMessage("§7[돌] §f이미 최대 체력 보너스입니다. §a(+" + curBonus + "하트)");
+            return false;
+        }
+
+        long next = nextGainAtMs.getOrDefault(id, now + (GAIN_SECONDS * 1000L));
+        long remainMs = Math.max(0, next - now);
+        int remainSec = (int) Math.ceil(remainMs / 1000.0);
+
+        player.sendMessage("§7[돌] §f다음 체력 보너스까지 §e" + remainSec + "초§f 남았습니다. " +
+                "§7(현재 보너스: §a" + curBonus + "하트§7)");
+
+        return false;
     }
 
     /**

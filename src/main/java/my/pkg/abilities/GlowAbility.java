@@ -66,11 +66,11 @@ public class GlowAbility implements Ability {
             Location center = player.getLocation().add(0, 1.0, 0);
             World w = player.getWorld();
 
-// 섬광 사운드
+            // 섬광 사운드
             w.playSound(center, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 1.0f, 1.3f);
             w.playSound(center, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.6f, 1.8f);
 
-// "번쩍" 대체: 폭발 1회 + 하얀 연무 + 반짝
+            // "번쩍" 대체: 폭발 1회 + 하얀 연무 + 반짝
             w.spawnParticle(Particle.EXPLOSION, center, 1); // 번쩍 느낌
             w.spawnParticle(Particle.CLOUD, center, 80, 0.9, 0.6, 0.9, 0.0);
             w.spawnParticle(Particle.END_ROD, center, 60, 0.8, 0.8, 0.8, 0.02);
