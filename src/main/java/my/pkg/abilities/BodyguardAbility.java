@@ -67,7 +67,8 @@ public class BodyguardAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("보디가드 : 자신을 제외한 플레이어중 랜덤으로 한명이 보호대상이됩니다. 보호대상이 살아있을때 각종 버프를 받지만, 보호대상이 죽으면 버프가 사라집니다.");
+        player.sendMessage("보디가드 : 자신을 제외한 플레이어중 랜덤으로 한명이 보호대상이됩니다.");
+        player.sendMessage("보호대상이 살아있을때 각종 버프를 받지만, 보호대상이 죽으면 버프가 사라집니다.");
         Player target = pickRandomOtherPlayer(player);
         if (target == null) {
             player.sendMessage("§7[보디가드] 현재 보호대상을 지정할 수 없습니다(다른 플레이어 없음).");

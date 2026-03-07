@@ -26,7 +26,13 @@ public class ParlemoAbility implements Ability {
     private static final int MULTI_PENALTY_BASE = 6;        // 다대1 기본 패널티
     private static final int MULTI_PENALTY_PER_EXTRA = 6;   // 추가 적 1명당 더 깎기 (기하급수 느낌)
 
-    private static final int PARRY_REQ_STACK = 12;          // 이 스택 이상부터 패링 가능
+    private static final int PARRY_REQ_STACK = 10;          // 10스택부터 패링 가능
+    private static final double EARLY_DAMAGE_MULT = 0.9;   // 0~9스택 공격력 감소
+    private static final int DAMAGE_GROWTH_START = 20;      // 20스택부터 공격력 증가 시작
+    private static final int DAMAGE_GROWTH_STEP = 10;       // 10스택마다 증가
+    private static final double DAMAGE_PER_STEP = 1.0;      // 단계당 +1 데미지
+    private static final double MAX_BONUS_DAMAGE = 5.0;     // 최대 +4 데미지
+        // 이 스택 이상부터 패링 가능
     private static final double PARRY_CHANCE = 0.20;        // 20%
     private static final double PARRY_COUNTER_DAMAGE = 1.0; // 패링 반격(0으로 하면 반격 없음)
 
@@ -50,7 +56,7 @@ public class ParlemoAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("§d[팔레르모] §f 1 VS 1 의 상황에서는 팔레르모를 배운 제가 더 유리합니다.");
+        player.sendMessage("팔레르모 : 1 VS 1 의 상황에서는 팔레르모를 배운 제가 더 유리합니다. 하지만 다수의 전투에서는 힘을 쓰기 어렵습니다.");
         player.sendMessage("§7- 스택 " + PARRY_REQ_STACK + " 이상: 20% 확률 패링(피해 무효)");
     }
 
@@ -68,7 +74,6 @@ public class ParlemoAbility implements Ability {
         return false;
     }
 
-    // ✅ 내가 때릴 때: 듀얼이면 스택 상승, 다대1이면 급감
     @Override
     public void onAttack(AbilitySystem system, EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player me)) return;
@@ -93,6 +98,26 @@ public class ParlemoAbility implements Ability {
             addStack(myId, -penalty);
             me.sendActionBar("§c[팔레르모] §f여럿과 교전 중! 스택 감소 §c-" + penalty);
         }
+
+        // ✅ 스택 기반 공격력 보정
+        int stack = stacks.getOrDefault(myId, 0);
+
+        // 0~9스택: 약함
+        if (stack < 10) {
+            event.setDamage(event.getDamage() * EARLY_DAMAGE_MULT);
+            return;
+        }
+
+        // 10~29스택: 기본 공격력 그대로
+        if (stack < DAMAGE_GROWTH_START) {
+            return;
+        }
+
+        // 30스택부터 10스택마다 +데미지
+        int steps = ((stack - DAMAGE_GROWTH_START) / DAMAGE_GROWTH_STEP) + 1;
+        double bonusDamage = Math.min(MAX_BONUS_DAMAGE, steps * DAMAGE_PER_STEP);
+
+        event.setDamage(event.getDamage() + bonusDamage);
     }
 
     // ✅ 내가 맞을 때: 교전 상대 기록 + 패링(조건: 듀얼 + 스택)
@@ -181,10 +206,20 @@ public class ParlemoAbility implements Ability {
 
     private void showStack(Player p) {
         int s = stacks.getOrDefault(p.getUniqueId(), 0);
-        // 스택 체감용 액션바 (원하면 보스바/텍스트디스플레이로 바꿔줄게)
-        String tier =
-                (s >= PARRY_REQ_STACK) ? "§a§l(패링 가능)" :
-                        (s >= PARRY_REQ_STACK / 2) ? "§e(성장 중)" : "§7(초반)";
+
+        String tier;
+        if (s >= 30) {
+            int steps = ((s - DAMAGE_GROWTH_START) / DAMAGE_GROWTH_STEP) + 1;
+            double bonusDamage = Math.min(MAX_BONUS_DAMAGE, steps * DAMAGE_PER_STEP);
+            tier = "§c§l(공격력 +" + bonusDamage + " / 패링 가능)";
+        } else if (s >= PARRY_REQ_STACK) {
+            tier = "§a§l(패링 가능)";
+        } else if (s >= 10) {
+            tier = "§e(기본 공격력 회복)";
+        } else {
+            tier = "§7(초반 약화)";
+        }
+
         p.sendActionBar("§d[팔레르모] §f스택: §d" + s + "§f/" + STACK_MAX + " " + tier);
     }
 

@@ -29,7 +29,7 @@ public class GlowAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("라이징스타 : 우클릭 시 3초 후 섬광! 주변 플레이어 눈뽕 + 본인은 6초간 (갑옷까지) 투명.");
+        player.sendMessage("라이징스타 : 우클릭 시 3초 후 섬광을 터트립니다. 본인은 6초간 (갑옷까지) 투명과 신속을 얻습니다.");
         player.sendMessage("§7※ 갑옷 투명은 6초간 갑옷을 잠깐 벗기는 방식(방어력도 감소)으로 구현됨.");
     }
 
@@ -79,6 +79,7 @@ public class GlowAbility implements Ability {
             // ✅ 여기서 투명 + 갑옷 제거 시작 (3초 뒤에 적용)
             applyArmorInvis(player);
             player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, INVIS_TICKS, 0, true, false, true));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 120, 1, true, false, true));
 
             // ✅ 6초 뒤 갑옷 복구
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {

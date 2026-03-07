@@ -11,8 +11,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
@@ -204,6 +203,24 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
         // ✅ 능력에게 넘김 (패시브)
         state.getAbility().onDamage(this, event);
+    }
+
+    @EventHandler
+    public void onFish(PlayerFishEvent event) {
+        Player player = event.getPlayer();
+        PlayerState state = getState(player);
+        if (state.getAbility() == null) return;
+
+        state.getAbility().onFish(this, event);
+    }
+
+    @EventHandler
+    public void onConsume(PlayerItemConsumeEvent event) {
+        Player player = event.getPlayer();
+        PlayerState state = getState(player);
+        if (state.getAbility() == null) return;
+
+        state.getAbility().onConsume(this, event);
     }
 
     @EventHandler

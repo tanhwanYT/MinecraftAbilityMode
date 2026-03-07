@@ -60,7 +60,8 @@ public class HitmanAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("청부업자 : 청부대상이 자신을 제외한 플레이어중 랜덤으로 한명이 지정됩니다. 청부대상을 직접 죽이면 버프를 얻습니다. 청부대상이 죽을때마다 새 대상이 지정되며 버프또한 중첩됩니다.");
+        player.sendMessage("청부업자 : 청부대상이 자신을 제외한 플레이어중 랜덤으로 한명이 지정됩니다.");
+        player.sendMessage("청부대상을 직접 죽이면 버프를 얻습니다. 청부대상이 죽을때마다 새 대상이 지정되며 버프또한 중첩됩니다.");
         stacks.putIfAbsent(player.getUniqueId(), 0);
         pickNewTarget(player, true);
         applyStackBuff(player);

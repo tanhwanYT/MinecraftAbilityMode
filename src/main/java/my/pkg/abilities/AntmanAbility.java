@@ -41,7 +41,8 @@ public class AntmanAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("앤트맨 : 본인의 크기를 랜덤으로 조절합니다. 크기가 커지면 최대체력이 증가하고, 크기가 작아지면 신속 버프를 얻습니다. (15초 후 원상복구)");
+        player.sendMessage("앤트맨 : 본인의 크기를 랜덤으로 조절합니다.");
+        player.sendMessage("크기가 커지면 최대체력이 증가하고, 크기가 작아지면 신속 버프를 얻습니다. (15초 후 원상복구)");
     }
 
     @Override

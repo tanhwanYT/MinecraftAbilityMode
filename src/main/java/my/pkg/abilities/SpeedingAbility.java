@@ -37,7 +37,8 @@ public class SpeedingAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다. 플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
+        player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다.");
+        player.sendMessage("플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
     }
 
     @Override
@@ -66,7 +67,7 @@ public class SpeedingAbility implements Ability {
                 activeUntilTick.remove(player.getUniqueId());
 
                 if (player.isOnline() && !player.isDead()) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, SLOW_TICKS, 0, false, false, true));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, SLOW_TICKS, 1, false, false, true));
                     player.sendMessage("§c[속도위반] §f과속 단속! 4초간 감속...");
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
                 }

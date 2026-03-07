@@ -49,7 +49,8 @@ public class TaliyahAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("탈리아 : 능력 사용시 벽을 세우며 돌진합니다. 중간에 내리는건 없고, 앞에 뭐가 있으면 넘어갑니다. 벽은 일정시간뒤에 사라집니다.");
+        player.sendMessage("탈리아 : 능력 사용시 벽을 세우며 돌진합니다. 중간에 내리는건 없고, 앞에 뭐가 있으면 넘어갑니다.");
+        player.sendMessage("벽은 일정시간뒤에 사라집니다.");
     }
 
     @Override

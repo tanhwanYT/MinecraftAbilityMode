@@ -1,6 +1,7 @@
 package my.pkg;
 
 import my.pkg.abilities.*;
+import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MyPlugin extends JavaPlugin {
@@ -43,6 +44,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new SlotMachineAbility(this));
         abilitySystem.register(new StoneAbility(this));
         abilitySystem.register(new ParlemoAbility(this));
+        abilitySystem.register(new FisherAbility(new NamespacedKey(this, "fisher_rod"), new NamespacedKey(this, "fisher_fish")));
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();

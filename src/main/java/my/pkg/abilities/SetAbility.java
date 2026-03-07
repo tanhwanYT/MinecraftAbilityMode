@@ -54,11 +54,11 @@ public class SetAbility implements Ability {
 
     @Override public String id() { return "set"; }
     @Override public String name() { return "세트"; }
-    @Override public int cooldownSeconds() { return 26; } // 원하는 값으로
+    @Override public int cooldownSeconds() { return 20; } // 원하는 값으로
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("§6[세트] §f전투로 투지를 쌓고, 우클릭으로 부채꼴 강타를 시전합니다!");
+        player.sendMessage("세트 : 전투로 투지 스택을 쌓습니다. 능력사용시 1초 후 전방에 투지스택에 비례한 부채꼴 공격을 가합니다.");
     }
 
     /**

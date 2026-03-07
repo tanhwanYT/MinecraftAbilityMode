@@ -40,7 +40,8 @@ public class GamblerAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("도박꾼 : '맨손' 공격 시 70% 확률로 상대에게 3~7의 랜덤 고정피해를 입힙니다. 하지만 30% 확률로 본인에게 대미지가 들어갈수있습니다.");
+        player.sendMessage("도박꾼 : '맨손' 공격 시 70% 확률로 상대에게 3~7의 랜덤 고정피해를 입힙니다.");
+        player.sendMessage("하지만 30% 확률로 본인에게 대미지가 들어갈수있습니다.");
         if (hpKey == null) hpKey = new NamespacedKey(system.getPlugin(), "gambler_hp_bonus");
         applyHpBonus(player);
     }

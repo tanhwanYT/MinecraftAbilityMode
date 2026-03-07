@@ -5,6 +5,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+
 
 public interface Ability {
     // 내부 식별자 (저장/관리용)
@@ -27,6 +30,9 @@ public interface Ability {
     // 발동 처리 (성공 시 true)
     boolean activate(AbilitySystem system, Player player);
 
+    //피셔 전용
+    default void onFish(AbilitySystem system, PlayerFishEvent event) {}
+    default void onConsume(AbilitySystem system, PlayerItemConsumeEvent event) {}
 
     // ✅ 패시브 훅들 (필요한 것만 override해서 쓰면 됨)
     default void onMove(AbilitySystem system, PlayerMoveEvent event) {}

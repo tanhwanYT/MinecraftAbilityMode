@@ -36,7 +36,8 @@ public class MalphiteAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("말파이트 : 네더의 별 우클릭 시 1초간 돌진합니다. 돌진 중 주변 플레이어가 느려지고, 앞을 뚫고 나갑니다. 1초 후 주변을 띄우며 피해를 줍니다.");
+        player.sendMessage("말파이트 : 네더의 별 우클릭 시 1초간 돌진합니다. 돌진 중 주변 플레이어가 느려지고, 앞을 뚫고 나갑니다.");
+        player.sendMessage("1초 후 주변을 띄우며 피해를 줍니다.");
     }
 
     @Override
