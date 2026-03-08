@@ -60,7 +60,7 @@ public class GameManager implements Listener {
     // ====== 설정값 ======
     private static final int PREP_SEC = 1 * 240;            // 준비 4분
     private static final int SHRINK_INTERVAL_SEC = 1 * 180; // 축소 주기 4분
-    private static final int SHOWDOWN_AFTER_SEC = 3 * 60; // RUNNING 시작 후 12분
+    private static final int SHOWDOWN_AFTER_SEC = 8 * 60; // RUNNING 시작 후 12분
 
     // 보더 단계(원하는대로 수정)
     private final double[] borderSizes = {600, 420, 300, 200, 140, 90, 60, 40};
@@ -376,6 +376,16 @@ public class GameManager implements Listener {
 
         phase = Phase.SHOWDOWN;
 
+        // ✅ 쇼다운 시작 시 월드보더를 마지막 단계까지 축소
+        World w = Bukkit.getWorlds().get(0);
+        WorldBorder border = w.getWorldBorder();
+        double finalSize = borderSizes[borderSizes.length - 1];
+        shrinkIndex = borderSizes.length - 1;
+
+        // 바로 줄이면 너무 갑작스러우니까 10초 동안 축소
+        border.setSize(finalSize, TimeUnit.SECONDS, 10L);
+        Bukkit.broadcastMessage("§c[자기장] §f쇼다운이 시작되어 자기장이 최종 단계까지 축소됩니다! §7(크기: " + (int) finalSize + ")");
+
         Player a = left.get(0);
         Player b = left.get(1);
 
@@ -390,8 +400,8 @@ public class GameManager implements Listener {
         b.teleport(showdownLocB);
 
         Bukkit.broadcastMessage("§6[결투] §f남은 두 명이 결투장으로 이동합니다!");
-        World w = showdownLocA.getWorld();
-        if (w != null) w.playSound(showdownLocA, Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.2f);
+        World showw = showdownLocA.getWorld();
+        if (w != null) showw.playSound(showdownLocA, Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.2f);
     }
 
     private void checkWinner() {

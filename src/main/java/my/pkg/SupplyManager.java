@@ -10,8 +10,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -29,11 +28,9 @@ import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.World;
 import org.bukkit.Bukkit;
+import org.bukkit.event.entity.EntityDeathEvent;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SupplyManager implements Listener {
@@ -61,10 +58,14 @@ public class SupplyManager implements Listener {
         this.plugin = plugin;
         this.crateKey = new NamespacedKey(plugin, "supply_crate");
         this.itemIdKey = new NamespacedKey(plugin, "supply_item_id");
+        this.markerKey = new NamespacedKey(plugin, "supply_marker");
 
         registerItems();
         buildLootTable();
     }
+
+    private final NamespacedKey markerKey;
+    private final Map<Location, UUID> crateMarkers = new HashMap<>();
 
     public void start() {
         stop();
@@ -92,16 +93,17 @@ public class SupplyManager implements Listener {
     private void add(SupplyItem item) { items.put(item.id(), item); }
 
     private void buildLootTable() {
-        // 가중치(밸런스는 나중에 조절)
-        loot.add(new Weighted("ender_pearl", 20));
-        loot.add(new Weighted("prot_helmet", 12));
-        loot.add(new Weighted("bridge_egg", 12));
+        loot.clear();
+
+        loot.add(new Weighted("ender_pearl", 10));
+        loot.add(new Weighted("prot_helmet", 10));
+        loot.add(new Weighted("bridge_egg", 10));
         loot.add(new Weighted("fire_ticket", 10));
         loot.add(new Weighted("trap", 10));
-        loot.add(new Weighted("midas_hand", 6));
-        loot.add(new Weighted("gambler_diamond", 4));
-        loot.add(new Weighted("scientist_secret", 5));
-        loot.add(new Weighted("adaptive_shield", 8));
+        loot.add(new Weighted("midas_hand", 10));
+        loot.add(new Weighted("gambler_diamond", 10));
+        loot.add(new Weighted("scientist_secret", 10));
+        loot.add(new Weighted("adaptive_shield", 10));
     }
 
     private void spawnCrateNearRandomPlayer() {
@@ -141,6 +143,18 @@ public class SupplyManager implements Listener {
 
         Bukkit.broadcastMessage("§6[보급] §f보급 상자가 떨어졌습니다! §e(" + x + ", " + y + ", " + z + ")");
 
+        ArmorStand marker = (ArmorStand) w.spawnEntity(ground.clone().add(0.5, 1.2, 0.5), EntityType.ARMOR_STAND);
+        marker.setInvisible(true);
+        marker.setInvulnerable(true);
+        marker.setGravity(false);
+        marker.setMarker(true);
+        marker.setGlowing(true);
+        marker.setCustomName("§6§l보급 상자");
+        marker.setCustomNameVisible(true);
+        marker.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
+
+        crateMarkers.put(ground.getBlock().getLocation(), marker.getUniqueId());
+
         // ✅ 모두가 알아차리게 파티클 “기둥”
         for (int i = 0; i < 80; i++) { // 80블록 높이
             w.spawnParticle(Particle.END_ROD, ground.clone().add(0.5, i * 0.5, 0.5), 2, 0.1, 0.0, 0.1, 0.0);
@@ -177,6 +191,13 @@ public class SupplyManager implements Listener {
         ItemStack reward = rollReward();
         p.getInventory().addItem(reward);
         p.sendMessage("§e[보급] 보상을 획득했습니다!");
+
+        Location chestLoc = b.getLocation();
+        UUID markerId = crateMarkers.remove(chestLoc);
+        if (markerId != null) {
+            Entity marker = Bukkit.getEntity(markerId);
+            if (marker != null) marker.remove();
+        }
 
         // 상자 제거
         b.setType(Material.AIR);
