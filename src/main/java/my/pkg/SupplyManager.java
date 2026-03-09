@@ -88,6 +88,7 @@ public class SupplyManager implements Listener {
         add(new GamblerDiamondItem(itemIdKey));
         add(new ScientistSecretItem(itemIdKey));
         add(new AdaptiveShieldItem(itemIdKey));
+        add(new OldPunishmentPostcardItem(itemIdKey));
     }
 
     private void add(SupplyItem item) { items.put(item.id(), item); }
@@ -104,6 +105,7 @@ public class SupplyManager implements Listener {
         loot.add(new Weighted("gambler_diamond", 10));
         loot.add(new Weighted("scientist_secret", 10));
         loot.add(new Weighted("adaptive_shield", 10));
+        loot.add(new Weighted("old_punishment_postcard", 10));
     }
 
     private void spawnCrateNearRandomPlayer() {
