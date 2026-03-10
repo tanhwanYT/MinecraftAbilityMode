@@ -54,7 +54,7 @@ public class SetAbility implements Ability {
 
     @Override public String id() { return "set"; }
     @Override public String name() { return "세트"; }
-    @Override public int cooldownSeconds() { return 20; } // 원하는 값으로
+    @Override public int cooldownSeconds() { return 25; } // 원하는 값으로
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {

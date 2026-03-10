@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BombermanAbility implements Ability {
 
     // ===== 밸런스 설정 =====
-    private static final int COOLDOWN = 15;
+    private static final int COOLDOWN = 10;
 
     private static final int CHARGE_INTERVAL_TICKS = 10 * 20; // 10초마다 1개 적립
     private static final int MAX_CHARGES = 10;               // 최대 적립 개수

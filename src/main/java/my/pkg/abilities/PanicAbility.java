@@ -18,7 +18,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class PanicAbility implements Ability {
 
     // 설정
-    private static final double RANGE = 12.0;     // 가장 가까운 플레이어 탐색 범위
+    private static final double RANGE = 15.0;     // 가장 가까운 플레이어 탐색 범위
     private static final int NAUSEA_TICKS = 20 * 3; // 3초
     private static final int BLIND_TICKS = 20 * 6;  // 6초
 
@@ -29,7 +29,7 @@ public class PanicAbility implements Ability {
     public String name() { return "패닉"; }
 
     @Override
-    public int cooldownSeconds() { return 26; }
+    public int cooldownSeconds() { return 23; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {

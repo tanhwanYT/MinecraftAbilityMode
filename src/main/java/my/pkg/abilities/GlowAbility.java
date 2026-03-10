@@ -25,7 +25,7 @@ public class GlowAbility implements Ability {
 
     @Override public String id() { return "glow"; }
     @Override public String name() { return "라이징스타"; }
-    @Override public int cooldownSeconds() { return 30; }
+    @Override public int cooldownSeconds() { return 35; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
