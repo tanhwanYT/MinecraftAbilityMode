@@ -326,7 +326,48 @@ public class AbilitySystem implements Listener, CommandExecutor {
             return true;
         }
 
+        // /ability reroll <player>
+        if (args[0].equalsIgnoreCase("reroll")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
 
+            if (args.length < 2) {
+                sender.sendMessage("Usage: /ability reroll <player>");
+                return true;
+            }
+
+            if (registry.isEmpty()) {
+                sender.sendMessage("No abilities registered.");
+                return true;
+            }
+
+            Player target = plugin.getServer().getPlayerExact(args[1]);
+            if (target == null) {
+                sender.sendMessage("플레이어를 찾을 수 없습니다.");
+                return true;
+            }
+
+            List<Ability> abilities = new ArrayList<>(registry.values());
+            Random random = new Random();
+
+            Ability newAbility = abilities.get(random.nextInt(abilities.size()));
+
+            PlayerState state = getState(target);
+            if (state.cooldownTask != null) {
+                state.cooldownTask.cancel();
+                state.cooldownTask = null;
+            }
+            target.sendActionBar("");
+
+            grant(target, newAbility);
+
+            sender.sendMessage("§a" + target.getName() + "의 능력을 §e" + newAbility.name() + "§a(으)로 리롤했습니다.");
+            target.sendMessage("§e[리롤] §f능력이 §a" + newAbility.name() + "§f(으)로 변경되었습니다!");
+
+            return true;
+        }
 
         if (args[0].equalsIgnoreCase("rerollall")) {
             if (!sender.isOp()) {
