@@ -1,12 +1,7 @@
 package my.pkg;
 
 import my.pkg.item.*;
-import org.bukkit.BlockChangeDelegate;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
@@ -24,10 +19,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.World;
-import org.bukkit.Bukkit;
 import org.bukkit.event.entity.EntityDeathEvent;
 
 import java.util.*;
@@ -41,6 +34,7 @@ public class SupplyManager implements Listener {
 
     private BukkitTask task;
 
+    private final Map<Location, BukkitTask> crateBeamTasks = new HashMap<>();
     private final Map<String, SupplyItem> items = new HashMap<>();
     private final List<Weighted> loot = new ArrayList<>();
 
@@ -75,7 +69,15 @@ public class SupplyManager implements Listener {
     }
 
     public void stop() {
-        if (task != null) { task.cancel(); task = null; }
+        if (task != null) {
+            task.cancel();
+            task = null;
+        }
+
+        for (BukkitTask beamTask : crateBeamTasks.values()) {
+            if (beamTask != null) beamTask.cancel();
+        }
+        crateBeamTasks.clear();
     }
 
     private void registerItems() {
@@ -137,8 +139,8 @@ public class SupplyManager implements Listener {
         }
 
         // 연출
-        w.strikeLightningEffect(ground);
-        w.playSound(ground, Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 1.4f);
+        w.playSound(ground, Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.2f);
+        startBeaconBeam(ground);
 
         // ✅ 위치 알림(좌표 공개)
         int x = ground.getBlockX();
@@ -173,6 +175,61 @@ public class SupplyManager implements Listener {
         }
     }
 
+    private void startBeaconBeam(Location ground) {
+        Location blockLoc = ground.getBlock().getLocation();
+
+        // 혹시 기존 태스크 있으면 제거
+        BukkitTask old = crateBeamTasks.remove(blockLoc);
+        if (old != null) old.cancel();
+
+        BukkitTask beamTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                Block block = blockLoc.getBlock();
+
+                // 상자가 사라졌으면 종료
+                if (block.getType() != Material.CHEST) {
+                    cancel();
+                    crateBeamTasks.remove(blockLoc);
+                    return;
+                }
+
+                if (!(block.getState() instanceof Chest chest)) {
+                    cancel();
+                    crateBeamTasks.remove(blockLoc);
+                    return;
+                }
+
+                Byte tag = chest.getPersistentDataContainer().get(crateKey, PersistentDataType.BYTE);
+                if (tag == null || tag != (byte) 1) {
+                    cancel();
+                    crateBeamTasks.remove(blockLoc);
+                    return;
+                }
+
+                World w = blockLoc.getWorld();
+                if (w == null) return;
+
+                double x = blockLoc.getX() + 0.5;
+                double z = blockLoc.getZ() + 0.5;
+
+                // 신호기 느낌의 수직 빛기둥
+                for (double y = 0; y <= 40; y += 0.75) {
+                    Location loc = new Location(w, x, blockLoc.getY() + y, z);
+
+                    // 중심 빛
+                    w.spawnParticle(Particle.END_ROD, loc, 2, 0.03, 0.1, 0.03, 0.0);
+
+                    // 바깥 은은한 빛
+                    w.spawnParticle(Particle.DUST, loc, 3, 0.12, 0.12, 0.12,
+                            new Particle.DustOptions(Color.AQUA, 1.4f));
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 10L); // 0.5초마다 갱신
+
+        crateBeamTasks.put(blockLoc, beamTask);
+    }
+
     // 보급 상자 열기(우클릭)
     @EventHandler
     public void onCrateOpen(PlayerInteractEvent e) {
@@ -201,6 +258,11 @@ public class SupplyManager implements Listener {
         if (markerId != null) {
             Entity marker = Bukkit.getEntity(markerId);
             if (marker != null) marker.remove();
+        }
+
+        BukkitTask beamTask = crateBeamTasks.remove(chestLoc);
+        if (beamTask != null) {
+            beamTask.cancel();
         }
 
         // 상자 제거

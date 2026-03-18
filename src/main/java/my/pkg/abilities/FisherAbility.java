@@ -25,7 +25,7 @@ public class FisherAbility implements Ability {
     private final NamespacedKey fishKey;
 
     private static final double FISH_CHANCE = 0.35; // 35%
-    private static final double FISH_HIT_DAMAGE = 4.0; // 2칸
+    private static final double FISH_HIT_DAMAGE = 8.0; // 4칸
     private static final double HEAL_AMOUNT = 4.0; // 2칸 회복
 
     public FisherAbility(NamespacedKey rodKey, NamespacedKey fishKey) {
@@ -50,8 +50,8 @@ public class FisherAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("피셔 : 전용 낚싯대를 받습니다. 낚시에 성공하면 30% 확률로 물고기를 얻습니다.(실패하면 똥을 얻음)");
-        player.sendMessage("피셔의 물고기 : 물고기로 때리면 고정 피해 2칸, 먹으면 체력을 회복합니다.");
+        player.sendMessage("피셔 : 전용 낚싯대를 받습니다. 낚시에 성공하면 35% 확률로 물고기를 얻습니다.(실패하면 똥을 얻음)");
+        player.sendMessage("피셔의 물고기 : 물고기로 때리면 고정 피해 4칸, 먹으면 체력을 회복합니다.");
 
         giveFishingRod(player);
     }

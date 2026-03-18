@@ -421,6 +421,19 @@ public class AbilitySystem implements Listener, CommandExecutor {
                 grant(p, randomAbility);
                 p.sendMessage("§a[능력] " + randomAbility.name() + " 능력이 부여되었습니다!");
 
+                new BukkitRunnable() {
+                    int t = 0;
+                    @Override
+                    public void run() {
+                        if (!p.isOnline() || t > 60) { // 3초
+                            cancel();
+                            return;
+                        }
+                        p.sendActionBar("§6당신의 능력: §e" + randomAbility.name());
+                        t += 10;
+                    }
+                }.runTaskTimer(plugin, 0L, 10L);
+
                 p.getInventory().addItem(createRerollTicket(1));
 
                 p.getInventory().addItem(createTrackerCompass(1));
@@ -433,9 +446,9 @@ public class AbilitySystem implements Listener, CommandExecutor {
                 giveOrDrop(p, new ItemStack(Material.BREAD, 128));            // 빵
 
                 p.giveExp(XP_AMOUNT); // XP n (포인트 단위)
-
-                gameManager.startGame();
             }
+
+            gameManager.startGame();
 
             sender.sendMessage("Ability game started! Random abilities assigned.");
             return true;

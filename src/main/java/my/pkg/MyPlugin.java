@@ -1,17 +1,26 @@
 package my.pkg;
 
 import my.pkg.abilities.*;
+import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MyPlugin extends JavaPlugin {
     private AbilitySystem abilitySystem;
     private GameManager gameManager;
     private SupplyManager supplyManager;
-
+    private void applyServerSettings() {
+        World world = Bukkit.getWorlds().get(0);
+        world.setGameRule(GameRule.LOCATOR_BAR , false);
+        world.setGameRule(GameRule.KEEP_INVENTORY, true);
+        world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+    }
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        applyServerSettings();
 
         this.supplyManager = new SupplyManager(this);
         getServer().getPluginManager().registerEvents(this.supplyManager, this);
@@ -57,4 +66,6 @@ public final class MyPlugin extends JavaPlugin {
             abilitySystem.shutdown();
         }
     }
+
+
 }

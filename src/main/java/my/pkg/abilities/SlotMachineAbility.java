@@ -23,6 +23,7 @@ public class SlotMachineAbility implements Ability {
 
     // 쿨/중복 방지
     private final Set<UUID> running = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Double> bonusHealth = new ConcurrentHashMap<>();
 
     public SlotMachineAbility(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -272,12 +273,17 @@ public class SlotMachineAbility implements Ability {
         // 최대체력 +2줄 = +4 하트 = +8 health
         AttributeInstance attr = p.getAttribute(Attribute.MAX_HEALTH);
         if (attr != null) {
+            double gain = 8.0; // +4하트
             double before = attr.getBaseValue();
-            double after = before + 8.0; // +4하트
+            double after = before + gain;
             attr.setBaseValue(after);
 
-            // 체력도 같이 어느 정도 채워주기(체감 좋게)
-            p.setHealth(Math.min(after, p.getHealth() + 8.0));
+            // 777 보너스 누적 기록
+            UUID id = p.getUniqueId();
+            bonusHealth.put(id, bonusHealth.getOrDefault(id, 0.0) + gain);
+
+            // 체력도 같이 채워주기
+            p.setHealth(Math.min(after, p.getHealth() + gain));
         }
     }
 
@@ -346,5 +352,26 @@ public class SlotMachineAbility implements Ability {
         if (b != null && !b.isDead()) b.remove();
         if (c != null && !c.isDead()) c.remove();
         running.remove(p.getUniqueId());
+    }
+
+    @Override
+    public void onRemove(AbilitySystem system, Player player) {
+        UUID id = player.getUniqueId();
+        double added = bonusHealth.getOrDefault(id, 0.0);
+        if (added <= 0.0) return;
+
+        AttributeInstance attr = player.getAttribute(Attribute.MAX_HEALTH);
+        if (attr != null) {
+            double base = attr.getBaseValue();
+            double newBase = Math.max(1.0, base - added);
+            attr.setBaseValue(newBase);
+
+            // 현재 체력이 최대체력보다 높아지면 맞춰줌
+            if (player.getHealth() > newBase) {
+                player.setHealth(newBase);
+            }
+        }
+
+        bonusHealth.remove(id);
     }
 }

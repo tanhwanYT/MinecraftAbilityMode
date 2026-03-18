@@ -59,8 +59,8 @@ public class GameManager implements Listener {
 
     // ====== 설정값 ======
     private static final int PREP_SEC = 1 * 240;            // 준비 4분
-    private static final int SHRINK_INTERVAL_SEC = 1 * 180; // 축소 주기 4분
-    private static final int SHOWDOWN_AFTER_SEC = 8 * 60; // RUNNING 시작 후 12분
+    private static final int SHRINK_INTERVAL_SEC = 1 * 180; // 축소 주기 3분
+    private static final int SHOWDOWN_AFTER_SEC = 8 * 60; // RUNNING 시작 후 8분
 
     // 보더 단계(원하는대로 수정)
     private final double[] borderSizes = {600, 420, 300, 200, 140, 90, 60, 40};
@@ -124,6 +124,7 @@ public class GameManager implements Listener {
         lives.clear();
         pendingRespawn.clear();
         initBossBar();
+
 
         if (supplyManager != null) supplyManager.start();
         // 온라인 플레이어 세팅
@@ -193,18 +194,20 @@ public class GameManager implements Listener {
 
     private Location pickRandomRespawn(World w) {
         WorldBorder border = w.getWorldBorder();
-        Location c = border.getCenter();
 
-        double half = border.getSize() / 2.0;
-        double margin = 12.0; // ✅ 여유 크게 (8~16 추천)
-        double usable = Math.max(10.0, half - margin);
+        // 원하는 랜덤 스폰 허용 구역
+        final double minX = -140.0;
+        final double maxX = 70.0;
+        final double minZ = -200.0;
+        final double maxZ = 45.0;
 
-        for (int i = 0; i < 80; i++) { // ✅ 시도 횟수 증가
-            double x = c.getX() + ThreadLocalRandom.current().nextDouble(-usable, usable);
-            double z = c.getZ() + ThreadLocalRandom.current().nextDouble(-usable, usable);
+        for (int i = 0; i < 120; i++) {
+            double x = ThreadLocalRandom.current().nextDouble(minX, maxX);
+            double z = ThreadLocalRandom.current().nextDouble(minZ, maxZ);
 
-            // ✅ “진짜로” 보더 안쪽인지 체크 (확정)
-            if (!border.isInside(new Location(w, x, c.getY(), z))) continue;
+            // 먼저 직사각형 내부에서 뽑은 뒤, 월드보더 안쪽인지 체크
+            Location test = new Location(w, x, w.getSpawnLocation().getY(), z);
+            if (!border.isInside(test)) continue;
 
             int bx = (int) Math.floor(x);
             int bz = (int) Math.floor(z);
@@ -213,18 +216,28 @@ public class GameManager implements Listener {
             Location loc = new Location(w, bx + 0.5, y + 1.0, bz + 0.5);
 
             Material below = w.getBlockAt(bx, y, bz).getType();
+
+            // 위험 블록 제외
             if (below == Material.LAVA || below == Material.MAGMA_BLOCK || below == Material.CACTUS) continue;
 
+            // 머리/몸 공간 확보
             if (!w.getBlockAt(bx, y + 1, bz).isPassable()) continue;
             if (!w.getBlockAt(bx, y + 2, bz).isPassable()) continue;
 
-            // ✅ 최종 위치도 보더 안인지 다시 체크
+            // 최종 위치도 월드보더 안쪽인지 다시 확인
             if (!border.isInside(loc)) continue;
 
             return loc;
         }
 
-        return w.getSpawnLocation().clone().add(0.5, 1, 0.5);
+        // 실패 시 안전한 기본 위치
+        Location fallback = w.getSpawnLocation().clone().add(0.5, 1, 0.5);
+        if (border.isInside(fallback)) return fallback;
+
+        // 스폰도 보더 밖이면 보더 중심으로 fallback
+        Location center = border.getCenter();
+        int y = w.getHighestBlockYAt(center);
+        return new Location(w, center.getX() + 0.5, y + 1.0, center.getZ() + 0.5);
     }
 
     // ===== 보더 =====
@@ -521,3 +534,4 @@ public class GameManager implements Listener {
         if (isRunning()) Bukkit.getScheduler().runTask(plugin, this::checkWinner);
     }
 }
+//70 -140, -200 45
