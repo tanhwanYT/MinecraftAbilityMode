@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.NamespacedKey;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.GameMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,7 @@ public class OldPunishmentPostcardItem implements SupplyItem {
         for (Player other : player.getWorld().getPlayers()) {
             if (other.equals(player)) continue;
             if (!other.isOnline() || other.isDead()) continue;
+            if (other.getGameMode() == GameMode.SPECTATOR) continue; // 관전자 제외
             candidates.add(other);
         }
 

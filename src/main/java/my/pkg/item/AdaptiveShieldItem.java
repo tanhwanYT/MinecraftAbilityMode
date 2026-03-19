@@ -6,6 +6,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -85,6 +86,28 @@ public class AdaptiveShieldItem implements SupplyItem {
         hand.setAmount(hand.getAmount() - 1);
 
         event.setCancelled(true);
+    }
+
+    @Override
+    public void onInventoryClick(JavaPlugin plugin, InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+
+        ItemStack cursor = e.getCursor();
+        ItemStack current = e.getCurrentItem();
+
+        // 오프핸드 슬롯 번호 = 40
+        if (e.getSlot() == 40) {
+
+            if (isAdaptiveShield(cursor) || isAdaptiveShield(current)) {
+
+                e.setCancelled(true);
+
+                p.getInventory().setItemInOffHand(null);
+
+                p.sendMessage("§c적응형 보호막은 왼손에 들 수 없어 파괴되었습니다.");
+                p.playSound(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.8f);
+            }
+        }
     }
 
     @Override

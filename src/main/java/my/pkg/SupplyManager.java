@@ -11,6 +11,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -309,6 +310,13 @@ public class SupplyManager implements Listener {
         String id = getSupplyId(hand);
         SupplyItem item = items.get(id);
         if (item != null) item.onRightClick(plugin, e.getPlayer(), e);
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent e) {
+        for (SupplyItem item : items.values()) {
+            item.onInventoryClick(plugin, e);
+        }
     }
 
     @EventHandler

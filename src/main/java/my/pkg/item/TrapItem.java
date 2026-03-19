@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.GameMode;
 
 import java.util.*;
 
@@ -96,6 +97,8 @@ public class TrapItem implements SupplyItem {
     @Override
     public void onPlayerMove(JavaPlugin plugin, PlayerMoveEvent e) {
         Player p = e.getPlayer();
+
+        if (p.getGameMode() == GameMode.SPECTATOR) return; // 관전자 무시
 
         cleanupExpired();
 
