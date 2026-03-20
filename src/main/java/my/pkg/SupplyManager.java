@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -57,6 +58,8 @@ public class SupplyManager implements Listener {
 
         registerItems();
         buildLootTable();
+
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     private final NamespacedKey markerKey;
@@ -310,6 +313,13 @@ public class SupplyManager implements Listener {
         String id = getSupplyId(hand);
         SupplyItem item = items.get(id);
         if (item != null) item.onRightClick(plugin, e.getPlayer(), e);
+    }
+
+    @EventHandler
+    public void onResurrect(EntityResurrectEvent e) {
+        for (SupplyItem item : items.values()) {
+            item.onResurrect(plugin, e);
+        }
     }
 
     @EventHandler

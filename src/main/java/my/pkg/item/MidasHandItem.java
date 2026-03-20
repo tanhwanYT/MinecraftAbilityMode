@@ -37,10 +37,8 @@ public class MidasHandItem implements SupplyItem {
         meta.setDisplayName("§6미다스의 손");
         meta.setLore(List.of("§7타격 시 상대의 랜덤 방어구를", "§e금 방어구§7로 바꿉니다"));
         meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id());
-        // 🔥 내구도 거의 끝 상태로 설정
-        if (meta instanceof Damageable dmg) {
-            dmg.setDamage(it.getType().getMaxDurability() - 1);
-        }
+        meta.setUnbreakable(true);
+
         it.setItemMeta(meta);
         return it;
     }
@@ -48,6 +46,9 @@ public class MidasHandItem implements SupplyItem {
     @Override
     public void onHitEntity(JavaPlugin plugin, Player attacker, LivingEntity victim, EntityDamageByEntityEvent e) {
         if (!(victim instanceof Player target)) return;
+
+        ItemStack hand = attacker.getInventory().getItemInMainHand();
+        if (!isMidasHand(hand)) return;
 
         EquipmentSlot slot = switch (ThreadLocalRandom.current().nextInt(4)) {
             case 0 -> EquipmentSlot.HEAD;
@@ -70,10 +71,8 @@ public class MidasHandItem implements SupplyItem {
 
         ItemStack gold = new ItemStack(newMat, 1);
 
-        // 인챈트 복사
         gold.addUnsafeEnchantments(old.getEnchantments());
 
-        // 내구도 비율 비슷하게 유지
         if (old.getItemMeta() instanceof Damageable od && gold.getItemMeta() instanceof Damageable gd) {
             int oldMax = old.getType().getMaxDurability();
             int newMax = gold.getType().getMaxDurability();
@@ -91,8 +90,14 @@ public class MidasHandItem implements SupplyItem {
         attacker.sendMessage("§6[미다스] 상대의 방어구가 금으로 변했습니다!");
         target.sendMessage("§e[미다스] 방어구가 금으로 변했습니다!");
 
-        attacker.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        attacker.getInventory().setItem(attacker.getInventory().getHeldItemSlot(), null);
         attacker.playSound(attacker.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
+    }
+
+    private boolean isMidasHand(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        String value = item.getItemMeta().getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
+        return id().equals(value);
     }
 
     private ItemStack getArmor(Player p, EquipmentSlot slot) {

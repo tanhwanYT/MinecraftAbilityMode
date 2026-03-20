@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.event.entity.EntityResurrectEvent;
 
 public interface SupplyItem {
     String id();
@@ -21,4 +22,5 @@ public interface SupplyItem {
     default void onPlayerMove(JavaPlugin plugin, PlayerMoveEvent e) {}
     default void onSwapHand(JavaPlugin plugin, PlayerSwapHandItemsEvent event) {}
     default void onInventoryClick(JavaPlugin plugin, InventoryClickEvent e) {}
+    default void onResurrect(JavaPlugin plugin, EntityResurrectEvent event) {}
 }

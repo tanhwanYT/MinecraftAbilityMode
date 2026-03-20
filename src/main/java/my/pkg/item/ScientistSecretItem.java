@@ -6,13 +6,9 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityResurrectEvent;
-import org.bukkit.inventory.EntityEquipment;
-import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -20,9 +16,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 
-public class ScientistSecretItem implements SupplyItem, Listener {
+public class ScientistSecretItem implements SupplyItem {
 
     private final NamespacedKey itemIdKey;
+    private final java.util.Set<java.util.UUID> processing = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public ScientistSecretItem(NamespacedKey itemIdKey) {
         this.itemIdKey = itemIdKey;
@@ -41,10 +38,8 @@ public class ScientistSecretItem implements SupplyItem, Listener {
             meta.setDisplayName("§b과학자의 비밀");
             meta.setLore(List.of("§7정체를 알 수 없는 불사의 토템"));
             meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id());
-
             meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
             item.setItemMeta(meta);
         }
         return item;
@@ -59,32 +54,43 @@ public class ScientistSecretItem implements SupplyItem, Listener {
         return id().equals(value);
     }
 
-    @EventHandler
-    public void onResurrect(EntityResurrectEvent event) {
-        Entity entity = event.getEntity();
-        if (!(entity instanceof Player player)) return;
+    @Override
+    public void onResurrect(JavaPlugin plugin, EntityResurrectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
         if (event.isCancelled()) return;
 
-        EntityEquipment eq = player.getEquipment();
-        if (eq == null) return;
+        if (!processing.add(player.getUniqueId())) return;
 
-        ItemStack main = eq.getItemInMainHand();
-        ItemStack off = eq.getItemInOffHand();
+        EquipmentSlot hand = event.getHand();
+        if (hand == null) {
+            processing.remove(player.getUniqueId());
+            return;
+        }
 
-        // 메인핸드/오프핸드 중 실제로 사용된 커스텀 토템인지 확인
-        if (!isScientistSecret(main) && !isScientistSecret(off)) return;
+        ItemStack usedTotem = switch (hand) {
+            case HAND -> player.getInventory().getItemInMainHand();
+            case OFF_HAND -> player.getInventory().getItemInOffHand();
+            default -> null;
+        };
 
-        AttributeInstance attr = player.getAttribute(Attribute.MAX_HEALTH);
-        if (attr == null) return;
+        if (!isScientistSecret(usedTotem)) {
+            processing.remove(player.getUniqueId());
+            return;
+        }
 
-        // 부활 직후 처리되도록 1틱 뒤 적용
-        JavaPlugin plugin = JavaPlugin.getProvidingPlugin(getClass());
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            attr.setBaseValue(10.0); // 최대체력 10 = 하트 5칸
-            if (player.getHealth() > 10.0) {
-                player.setHealth(10.0);
+            try {
+                if (!player.isOnline() || player.isDead()) return;
+                // 디버프
+                player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        org.bukkit.potion.PotionEffectType.WEAKNESS, 20 * 15, 0, true, true, true));
+                player.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                        org.bukkit.potion.PotionEffectType.SLOWNESS, 20 * 7, 0, true, true, true));
+
+                player.sendMessage("§b[과학자의 비밀] §f부활의 대가로 몸이 불안정해졌습니다!");
+            } finally {
+                processing.remove(player.getUniqueId());
             }
-            player.sendMessage("§b[과학자의 비밀] §f부활의 대가로 최대 체력이 §c5칸§f이 되었습니다.");
         }, 1L);
     }
 }
