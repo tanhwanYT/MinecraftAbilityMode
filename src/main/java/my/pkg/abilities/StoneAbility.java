@@ -238,27 +238,25 @@ public class StoneAbility implements Ability {
         World w = p.getWorld();
         if (!w.getUID().equals(a.worldId)) return;
 
-        // 바닥 기준 Y (발밑에서 살짝 띄움)
         double y = p.getLocation().getBlockY() + 0.05;
 
         int cx = a.bx;
         int cz = a.bz;
 
-        // 3x3 테두리 좌표들 (총 8개 코너/변)
         int[][] edge = {
                 {cx - 1, cz - 1}, {cx, cz - 1}, {cx + 1, cz - 1},
                 {cx - 1, cz},                 {cx + 1, cz},
                 {cx - 1, cz + 1}, {cx, cz + 1}, {cx + 1, cz + 1}
         };
+
         for (int[] pos : edge) {
             double px = pos[0] + 0.5;
             double pz = pos[1] + 0.5;
 
             Location loc = new Location(w, px, y, pz);
 
-            w.spawnParticle(Particle.END_ROD, loc, 1, 0, 0, 0, 0);
-            // 바닥에 영역감 조금(원하면 주석)
-            w.spawnParticle(Particle.CLOUD, loc, 1, 0.05, 0.0, 0.05, 0.0);
+            p.spawnParticle(Particle.END_ROD, loc, 1, 0, 0, 0, 0);
+            p.spawnParticle(Particle.CLOUD, loc, 1, 0.05, 0.0, 0.05, 0.0);
         }
     }
 

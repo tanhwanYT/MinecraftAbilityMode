@@ -13,6 +13,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
+import org.bukkit.Bukkit;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -244,7 +245,7 @@ public class SlotMachineAbility implements Ability {
         World w = p.getWorld();
         Location loc = p.getLocation();
 
-        p.sendMessage("§4§l[슬롯] 6 6 6... §c§l저주가 발동했습니다!");
+        Bukkit.broadcastMessage("§4§l[슬롯] §c" + p.getName() + "§f님이 §4§l666 저주§f에 당첨되었습니다!");
         w.playSound(loc, Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.6f);
         w.playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.9f, 0.8f);
 
@@ -261,7 +262,7 @@ public class SlotMachineAbility implements Ability {
         World w = p.getWorld();
         Location loc = p.getLocation();
 
-        p.sendMessage("§6§l[슬롯] 7 7 7!! §e§l축복이 내려왔습니다!");
+        Bukkit.broadcastMessage("§6§l[슬롯] §e" + p.getName() + "§f님이 §6§l777 대박§f에 당첨되었습니다!");
         w.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.8f);
         w.playSound(loc, Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 1.2f);
 

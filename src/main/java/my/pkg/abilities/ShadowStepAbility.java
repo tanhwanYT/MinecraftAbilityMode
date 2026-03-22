@@ -1,6 +1,9 @@
 package my.pkg.abilities;
 
-import my.pkg.AbilitySystem;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
@@ -15,14 +18,11 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import my.pkg.AbilitySystem;
 
 public class ShadowStepAbility implements Ability, Listener {
 
     // ===== 밸런스 설정 =====
-    private static final int COOLDOWN = 15;
     private static final int FREEZE_TICKS = 20;       // 1초
     private static final double RANGE = 8.0;          // 타겟팅 거리
     private static final double BEHIND_DISTANCE = 1.5; // 대상 뒤로 이동 거리
@@ -44,7 +44,7 @@ public class ShadowStepAbility implements Ability, Listener {
 
     @Override
     public int cooldownSeconds() {
-        return COOLDOWN;
+        return 20;
     }
 
     @Override

@@ -29,7 +29,7 @@ public class SniperAbility implements Ability, Listener {
 
     // ===== 밸런스 =====
     private static final double RANGE = 75.0;         // 사거리 (늘림)
-    private static final double DAMAGE = 14.0;        // 대미지 (늘림) - 하트 7칸
+    private static final double DAMAGE = 16.0;        // 대미지 (늘림) - 하트 8칸
     private static final int COOLDOWN = 25;           // 쿨타임 (늘림)
 
     // ===== 시즈모드(조준) =====
