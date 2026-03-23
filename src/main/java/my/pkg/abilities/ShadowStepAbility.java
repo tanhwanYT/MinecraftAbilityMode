@@ -34,7 +34,7 @@ public class ShadowStepAbility implements Ability, Listener {
 
     @Override
     public String id() {
-        return "shadow_step";
+        return "shadowstep";
     }
 
     @Override
