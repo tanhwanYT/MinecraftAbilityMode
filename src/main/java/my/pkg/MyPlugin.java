@@ -56,6 +56,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new FisherAbility(new NamespacedKey(this, "fisher_rod"), new NamespacedKey(this, "fisher_fish")));
         abilitySystem.register(new ShadowStepAbility());
         abilitySystem.register(new ChainArmAbility());
+        abilitySystem.register(new GlassCannonAbility());
+        abilitySystem.register(new HotSpringAbility());
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();
