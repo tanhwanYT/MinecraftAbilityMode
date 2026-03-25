@@ -58,6 +58,8 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new ChainArmAbility());
         abilitySystem.register(new GlassCannonAbility());
         abilitySystem.register(new HotSpringAbility());
+        abilitySystem.register(new GuillotineAbility(this));
+        abilitySystem.register(new ArcherAbility(new NamespacedKey(this, "archer_bow"), new NamespacedKey(this, "archer_arrow"), new NamespacedKey(this, "archer_potion_arrow")));
 
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();

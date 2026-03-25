@@ -94,8 +94,11 @@ public class AbilitySystem implements Listener, CommandExecutor {
         // 쿨타임 초기화
         state.nextUsableAtMs = 0;
         if (ability != null) {
-            // 신규 능력 지급 훅 호출
             ability.onGrant(this, player);
+
+            if (ability instanceof Listener listener) {
+                plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+            }
         }
     }
 
