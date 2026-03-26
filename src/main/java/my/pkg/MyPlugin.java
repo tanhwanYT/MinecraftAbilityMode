@@ -61,6 +61,10 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new GuillotineAbility(this));
         abilitySystem.register(new ArcherAbility(new NamespacedKey(this, "archer_bow"), new NamespacedKey(this, "archer_arrow"), new NamespacedKey(this, "archer_potion_arrow")));
 
+        ReporterAbility reporterAbility = new ReporterAbility(this);
+        getServer().getPluginManager().registerEvents(reporterAbility, this);
+        abilitySystem.register(reporterAbility);
+
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();
         getCommand("ability").setExecutor(abilitySystem);
