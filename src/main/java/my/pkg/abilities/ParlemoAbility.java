@@ -22,14 +22,14 @@ public class ParlemoAbility implements Ability {
     private static final int STACK_DECAY_OUT_COMBAT = 1;    // 비전투 시 초당 -1
     private static final long OUT_COMBAT_MS = 7_000;        // 7초 교전 없으면 비전투로 판단
 
-    private static final int STACK_MAX = 60;                // 스택 상한
-    private static final int MULTI_PENALTY_BASE = 6;        // 다대1 기본 패널티
-    private static final int MULTI_PENALTY_PER_EXTRA = 6;   // 추가 적 1명당 더 깎기 (기하급수 느낌)
+    private static final int STACK_MAX = 30;                // 스택 상한
+    private static final int MULTI_PENALTY_BASE = 4;        // 다대1 기본 패널티
+    private static final int MULTI_PENALTY_PER_EXTRA = 3;   // 추가 적 1명당 더 깎기 (기하급수 느낌)
 
-    private static final int PARRY_REQ_STACK = 10;          // 10스택부터 패링 가능
+    private static final int PARRY_REQ_STACK = 8;          // 8스택부터 패링 가능
     private static final double EARLY_DAMAGE_MULT = 0.9;   // 0~9스택 공격력 감소
-    private static final int DAMAGE_GROWTH_START = 20;      // 20스택부터 공격력 증가 시작
-    private static final int DAMAGE_GROWTH_STEP = 10;       // 10스택마다 증가
+    private static final int DAMAGE_GROWTH_START = 14;      // 14스택부터 공격력 증가 시작
+    private static final int DAMAGE_GROWTH_STEP = 6;       // 6스택마다 증가
     private static final double DAMAGE_PER_STEP = 1.0;      // 단계당 +1 데미지
     private static final double MAX_BONUS_DAMAGE = 5.0;     // 최대 +4 데미지
         // 이 스택 이상부터 패링 가능

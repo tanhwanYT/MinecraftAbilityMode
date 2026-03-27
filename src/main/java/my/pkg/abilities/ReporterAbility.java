@@ -31,7 +31,6 @@ public class ReporterAbility implements Ability, Listener {
     private final JavaPlugin plugin;
     private final NamespacedKey targetKey;
 
-    private static final int COOLDOWN = 45;
     private static final int EXPOSE_TICKS = 20 * 5;
 
     private static final Set<UUID> processing = ConcurrentHashMap.newKeySet();
@@ -59,7 +58,7 @@ public class ReporterAbility implements Ability, Listener {
 
     @Override
     public int cooldownSeconds() {
-        return COOLDOWN;
+        return 70;
     }
 
     @Override
@@ -69,6 +68,7 @@ public class ReporterAbility implements Ability, Listener {
         player.sendMessage("§b기자 §f: 서바이벌 플레이어 1명을 지목해 능력을 모두에게 공개합니다.");
         player.sendMessage("§7- 능력이 밝혀진 플레이어는 5초간 발광과 구속에 걸립니다.");
         player.sendMessage("§7- 능력 사용 시 플레이어 머리 UI가 열립니다.");
+        player.sendMessage("§7- 자기자신한테도 사용 가능합니다.(굳이?)");
 
     }
 

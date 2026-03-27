@@ -38,7 +38,7 @@ public class HotSpringAbility implements Ability, Listener {
 
     @Override
     public String id() {
-        return "hot_spring";
+        return "hotspring";
     }
 
     @Override
