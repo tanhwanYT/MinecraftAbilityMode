@@ -1,8 +1,7 @@
 package my.pkg;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
 import my.pkg.abilities.Ability;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -17,9 +16,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -47,6 +43,16 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
     private final NamespacedKey trackerCompassKey;
 
+    private AbilityPickManager abilityPickManager;
+
+    public void setAbilityPickManager(AbilityPickManager abilityPickManager) {
+        this.abilityPickManager = abilityPickManager;
+    }
+
+    public Collection<Ability> getRegisteredAbilities() {
+        return Collections.unmodifiableCollection(registry.values());
+    }
+
     private BukkitTask trackerTask;
     private final NamespacedKey rerollKey;
 
@@ -66,6 +72,10 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
     public void register(Ability ability) {
         registry.put(ability.id().toLowerCase(), ability);
+
+        if (ability instanceof Listener listener) {
+            plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        }
     }
 
     public Ability getAbility(String id) {
@@ -96,9 +106,6 @@ public class AbilitySystem implements Listener, CommandExecutor {
         if (ability != null) {
             ability.onGrant(this, player);
 
-            if (ability instanceof Listener listener) {
-                plugin.getServer().getPluginManager().registerEvents(listener, plugin);
-            }
         }
     }
 
@@ -414,11 +421,9 @@ public class AbilitySystem implements Listener, CommandExecutor {
                 return true;
             }
 
-            // 등록된 능력 목록을 리스트로 변환
             List<Ability> abilities = new ArrayList<>(registry.values());
             Random random = new Random();
 
-            // 온라인 플레이어 전원에게 랜덤 능력 배정
             for (Player p : plugin.getServer().getOnlinePlayers()) {
                 Ability randomAbility = abilities.get(random.nextInt(abilities.size()));
                 grant(p, randomAbility);
@@ -428,7 +433,7 @@ public class AbilitySystem implements Listener, CommandExecutor {
                     int t = 0;
                     @Override
                     public void run() {
-                        if (!p.isOnline() || t > 60) { // 3초
+                        if (!p.isOnline() || t > 60) {
                             cancel();
                             return;
                         }
@@ -437,23 +442,26 @@ public class AbilitySystem implements Listener, CommandExecutor {
                     }
                 }.runTaskTimer(plugin, 0L, 10L);
 
-                p.getInventory().addItem(createRerollTicket(1));
-
-                p.getInventory().addItem(createTrackerCompass(1));
-
-                giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, LAPIS_COUNT)); // 청금석 n개
-                giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));            // 철 29개
-                giveOrDrop(p, new ItemStack(Material.STICK, 1));                  // 막대기 1개
-                giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 64));            // 양털 한셋(흰양털 64)
-                giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));            // 네더의 별
-                giveOrDrop(p, new ItemStack(Material.BREAD, 128));            // 빵
-
-                p.giveExp(XP_AMOUNT); // XP n (포인트 단위)
+                giveDefaultStartItems(p, true); // 기존 랜덤 모드니까 리롤권 포함
             }
 
             gameManager.startGame();
-
             sender.sendMessage("Ability game started! Random abilities assigned.");
+            return true;
+        }
+
+        //직접 능력을 선택할수 있는 모드 ability startpick
+        if (args[0].equalsIgnoreCase("startpick")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
+            if (abilityPickManager == null) {
+                sender.sendMessage("AbilityPickManager is not connected.");
+                return true;
+            }
+
+            abilityPickManager.startPickGame(sender);
             return true;
         }
 
@@ -480,6 +488,23 @@ public class AbilitySystem implements Listener, CommandExecutor {
             return true;
         }
         return true;
+    }
+
+    public void giveDefaultStartItems(Player p, boolean giveRerollTicket) {
+        if (giveRerollTicket) {
+            p.getInventory().addItem(createRerollTicket(1));
+        }
+
+        p.getInventory().addItem(createTrackerCompass(1));
+
+        giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, LAPIS_COUNT));
+        giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));
+        giveOrDrop(p, new ItemStack(Material.STICK, 1));
+        giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 64));
+        giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));
+        giveOrDrop(p, new ItemStack(Material.BREAD, 128));
+
+        p.giveExp(XP_AMOUNT);
     }
 
     private void giveOrDrop(Player p, ItemStack item) {

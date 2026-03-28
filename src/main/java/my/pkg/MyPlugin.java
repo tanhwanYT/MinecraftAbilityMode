@@ -11,6 +11,8 @@ public final class MyPlugin extends JavaPlugin {
     private AbilitySystem abilitySystem;
     private GameManager gameManager;
     private SupplyManager supplyManager;
+    private AbilityPickManager abilityPickManager;
+
     private void applyServerSettings() {
         World world = Bukkit.getWorlds().get(0);
         world.setGameRule(GameRule.LOCATOR_BAR , false);
@@ -29,6 +31,11 @@ public final class MyPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(this.gameManager, this);
 
         this.abilitySystem = new AbilitySystem(this, this.gameManager);
+        this.abilityPickManager = new AbilityPickManager(this, this.abilitySystem, this.supplyManager, this.gameManager);
+
+        this.abilitySystem.setAbilityPickManager(this.abilityPickManager);
+
+        getServer().getPluginManager().registerEvents(this.abilityPickManager, this);
 
         SupplyCommand supplyCommand = new SupplyCommand(this.supplyManager);
         getCommand("supply").setExecutor(supplyCommand);

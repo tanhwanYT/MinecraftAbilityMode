@@ -41,8 +41,11 @@ public class SupplyManager implements Listener {
     private final List<Weighted> loot = new ArrayList<>();
 
     public ItemStack createItemById(String id) {
-        SupplyItem item = items.get(id);
+        if (id == null) return null;
+
+        SupplyItem item = items.get(id.toLowerCase());
         if (item == null) return null;
+
         return item.create(plugin);
     }
 
@@ -60,6 +63,21 @@ public class SupplyManager implements Listener {
         buildLootTable();
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
+
+    public void giveSupplyItem(Player player, String id) {
+        ItemStack item = createItemById(id);
+        if (item == null) {
+            player.sendMessage("§c보급 아이템을 찾을 수 없습니다: " + id);
+            return;
+        }
+
+        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+        if (!leftover.isEmpty()) {
+            leftover.values().forEach(it ->
+                    player.getWorld().dropItemNaturally(player.getLocation(), it)
+            );
+        }
     }
 
     private final NamespacedKey markerKey;
