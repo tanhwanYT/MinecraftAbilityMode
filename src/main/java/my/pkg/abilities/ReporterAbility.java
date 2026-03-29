@@ -35,6 +35,9 @@ public class ReporterAbility implements Ability, Listener {
 
     private static final Set<UUID> processing = ConcurrentHashMap.newKeySet();
 
+    private static final long EMBARGO_MS = 4 * 60 * 1000L; // 4분
+    private static final Map<UUID, Long> embargoEndTimes = new ConcurrentHashMap<>();
+
     // 기자 능력 보유자
     private static final Set<UUID> holders = ConcurrentHashMap.newKeySet();
 
@@ -58,18 +61,19 @@ public class ReporterAbility implements Ability, Listener {
 
     @Override
     public int cooldownSeconds() {
-        return 70;
+        return 75;
     }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         holders.add(player.getUniqueId());
+        embargoEndTimes.put(player.getUniqueId(), System.currentTimeMillis() + EMBARGO_MS);
 
         player.sendMessage("§b기자 §f: 서바이벌 플레이어 1명을 지목해 능력을 모두에게 공개합니다.");
         player.sendMessage("§7- 능력이 밝혀진 플레이어는 5초간 발광과 구속에 걸립니다.");
         player.sendMessage("§7- 능력 사용 시 플레이어 머리 UI가 열립니다.");
         player.sendMessage("§7- 자기자신한테도 사용 가능합니다.(굳이?)");
-
+        player.sendMessage("§c[엠바고] §f능력을 부여받고 4분 동안은 능력을 사용할 수 없습니다.");
     }
 
     @Override
@@ -83,11 +87,26 @@ public class ReporterAbility implements Ability, Listener {
                 p.closeInventory();
             }
         }
+        embargoEndTimes.remove(player.getUniqueId());
+        systems.remove(player.getUniqueId());
+        processing.remove(player.getUniqueId());
     }
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
         if (!holders.contains(player.getUniqueId())) return false;
+
+        long now = System.currentTimeMillis();
+        long embargoEnd = embargoEndTimes.getOrDefault(player.getUniqueId(), 0L);
+
+        if (now < embargoEnd) {
+            long remainSec = (embargoEnd - now + 999) / 1000;
+            long min = remainSec / 60;
+            long sec = remainSec % 60;
+
+            player.sendMessage("§c[엠바고] §f게임 준비시간 동안은 능력을 사용할 수 없습니다. 남은 시간: §e" + min + "분 " + sec + "초");
+            return false;
+        }
 
         List<Player> targets = getAvailableTargets(player);
         if (targets.isEmpty()) {

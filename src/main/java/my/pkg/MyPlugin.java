@@ -81,6 +81,7 @@ public final class MyPlugin extends JavaPlugin {
         // 6) ability 리스너/커맨드
         abilitySystem.registerListeners();
         getCommand("ability").setExecutor(abilitySystem);
+        getCommand("ability").setTabCompleter(abilitySystem);
     }
 
     @Override

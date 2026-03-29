@@ -18,8 +18,8 @@ public class BackAttackerAbility implements Ability {
     // ===== 밸런스 설정 =====
     private static final double BONUS_DAMAGE = 2.0;      // 뒤 공격 추가 대미지
     private static final double BACK_THRESHOLD = -0.5;   // 뒤 판정 기준(dot)
-    private static final int DASH_TICKS = 5;             // 돌진 지속 틱
-    private static final double DASH_SPEED = 1.0;       // 돌진 속도
+    private static final int DASH_TICKS = 3;             // 돌진 지속 틱
+    private static final double DASH_SPEED = 0.8;       // 돌진 속도
     private static final double DASH_Y = 0.04;           // 돌진 시 약간 뜨는 값
 
     // ===== 상태 =====

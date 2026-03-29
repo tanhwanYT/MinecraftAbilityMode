@@ -26,8 +26,8 @@ public class SetAbility implements Ability {
     private static final long COMBAT_GRACE_MS = 6_000;
     private static final int DECAY_INTERVAL_TICKS = 20;
 
-    private static final double RANGE = 6.0;
-    private static final double FAN_ANGLE_DEG = 90.0;
+    private static final double RANGE = 7.0;
+    private static final double FAN_ANGLE_DEG = 110.0;
     private static final double CENTER_ANGLE_DEG = 12.0;
 
     private static final double DAMAGE_PER_STACK = 1.0;
@@ -273,7 +273,8 @@ public class SetAbility implements Ability {
             double dmg = baseDamage;
             if (angle <= halfCenter) dmg *= CENTER_MULT;
 
-            target.damage(dmg, caster);
+            double finalHealth = target.getHealth() - dmg;
+            target.setHealth(Math.max(0, finalHealth));
         }
     }
 

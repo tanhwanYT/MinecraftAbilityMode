@@ -17,6 +17,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
@@ -37,6 +38,7 @@ public class AbilityPickManager implements Listener {
     private final NamespacedKey abilityKey;
     private final NamespacedKey randomKey;
     private final NamespacedKey rewardKey;
+    private final NamespacedKey rewardRandomKey;
 
     private final Map<String, AbilityInfo> abilityInfos = new LinkedHashMap<>();
     private final Map<String, RewardInfo> rewardInfos = new LinkedHashMap<>();
@@ -58,6 +60,7 @@ public class AbilityPickManager implements Listener {
         this.abilityKey = new NamespacedKey(plugin, "pick_ability_id");
         this.randomKey = new NamespacedKey(plugin, "pick_random");
         this.rewardKey = new NamespacedKey(plugin, "pick_reward_id");
+        this.rewardRandomKey = new NamespacedKey(plugin, "pick_reward_random");
 
         registerAbilityInfos();
         registerRewardInfos();
@@ -147,10 +150,11 @@ public class AbilityPickManager implements Listener {
 
         int slot = 0;
         for (RewardInfo info : rewardInfos.values()) {
-            if (slot >= REWARD_SIZE) break;
+            if (slot >= 26) break; // 마지막 칸 하나는 랜덤 버튼용
             inv.setItem(slot++, createRewardItem(info));
         }
 
+        inv.setItem(26, createRandomRewardItem());
         player.openInventory(inv);
     }
 
@@ -168,6 +172,21 @@ public class AbilityPickManager implements Listener {
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    private String pickRandomRewardId(UUID playerId) {
+        Set<String> picked = selectedRewardIds.computeIfAbsent(playerId, k -> new LinkedHashSet<>());
+
+        List<String> candidates = new ArrayList<>();
+        for (String id : rewardInfos.keySet()) {
+            if (!picked.contains(id)) {
+                candidates.add(id);
+            }
+        }
+
+        if (candidates.isEmpty()) return null;
+
+        return candidates.get(new Random().nextInt(candidates.size()));
     }
 
     @EventHandler
@@ -233,8 +252,20 @@ public class AbilityPickManager implements Listener {
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || !clicked.hasItemMeta()) return;
 
-            String rewardId = clicked.getItemMeta().getPersistentDataContainer()
-                    .get(rewardKey, PersistentDataType.STRING);
+            ItemMeta meta = clicked.getItemMeta();
+
+            Byte isRandomReward = meta.getPersistentDataContainer().get(rewardRandomKey, PersistentDataType.BYTE);
+            String rewardId = meta.getPersistentDataContainer().get(rewardKey, PersistentDataType.STRING);
+
+            if (isRandomReward != null && isRandomReward == (byte) 1) {
+                rewardId = pickRandomRewardId(player.getUniqueId());
+
+                if (rewardId == null) {
+                    player.sendMessage("§c더 이상 뽑을 수 있는 랜덤 보상이 없습니다.");
+                    return;
+                }
+            }
+
             if (rewardId == null) return;
 
             Set<String> picked = selectedRewardIds.computeIfAbsent(
@@ -262,10 +293,32 @@ public class AbilityPickManager implements Listener {
                 awaitingRewardPick.remove(player.getUniqueId());
                 selectedRewardIds.remove(player.getUniqueId());
                 player.closeInventory();
-                player.sendMessage("§6랜덤 보상 선택이 완료되었습니다!");
+                player.sendMessage("§6보급 보상 선택이 완료되었습니다!");
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
+            } else {
+                // 1개만 골랐으면 다시 창 갱신해서 중복 방지 체감 좋게
+                Bukkit.getScheduler().runTask(plugin, () -> openRewardPickInventory(player));
             }
         }
+    }
+
+    private ItemStack createRandomRewardItem() {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§d랜덤 보상");
+            meta.setLore(List.of(
+                    "§7남아있는 보상 중 하나를",
+                    "§7랜덤으로 선택합니다.",
+                    "",
+                    "§e클릭하여 랜덤 선택"
+            ));
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.LUCK_OF_THE_SEA, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            meta.getPersistentDataContainer().set(rewardRandomKey, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     @EventHandler
@@ -284,7 +337,7 @@ public class AbilityPickManager implements Listener {
                 if (!player.isOnline()) return;
                 if (!awaitingAbilityPick.contains(uuid)) return;
 
-                player.sendMessage("§e10초가 지나 다시 능력을 고를 수 있습니다.");
+                player.sendMessage("§e하하 농담이에요.");
                 openAbilityPickInventory(player);
             }, 20L * 10);
 
@@ -302,20 +355,20 @@ public class AbilityPickManager implements Listener {
     }
 
     private void showPickedAbility(Player player, String abilityName) {
-        player.sendMessage("§a[능력] §f" + abilityName + " 능력이 선택되었습니다!");
-
-        Bukkit.getScheduler().runTaskTimer(plugin, new org.bukkit.scheduler.BukkitRunnable() {
+        new BukkitRunnable() {
             int t = 0;
+
             @Override
             public void run() {
                 if (!player.isOnline() || t > 60) {
                     cancel();
                     return;
                 }
+
                 player.sendActionBar("§6당신의 능력: §e" + abilityName);
                 t += 10;
             }
-        }, 0L, 10L);
+        }.runTaskTimer(plugin, 0L, 10L);
     }
 
     private void cancelReopenTask(UUID uuid) {
@@ -339,7 +392,7 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("antman", "앤트맨", "자신 크기를 15초 동안 랜덤 변경. 커지면 최대체력 증가, 작아지면 최대체력 감소 및 속도 강화", Material.RED_MUSHROOM));
         putAbility(new AbilityInfo("speeding", "속도위반", "5초간 노란 양털 위에서 가속, 다른 플레이어와 부딪히면 밀쳐냄. 종료 후 감속 페널티", Material.LEATHER_BOOTS));
         putAbility(new AbilityInfo("panic", "패닉", "가장 가까운 플레이어와 위치 교체, 대상과 본인에게 혼란/실명/인벤토리 룰렛 디버프", Material.CHORUS_FRUIT));
-        putAbility(new AbilityInfo("sniper", "스나이퍼", "시즈모드 3초 조준 후 강한 탄환 발사(고데미지)", Material.BOW));
+        putAbility(new AbilityInfo("sniper", "스나이퍼", "시즈모드 3초 조준 후 강한 탄환 발사(고데미지)", Material.CROSSBOW));
         putAbility(new AbilityInfo("donation", "도네이션", "바라보는 플레이어를 스턴, 대상은 쉬프트 연타로 해제 가능", Material.GOLD_INGOT));
         putAbility(new AbilityInfo("taliyah", "탈리아", "벽을 세우며 돌진 이동, 생성된 벽은 일정 시간 후 복구", Material.SANDSTONE));
         putAbility(new AbilityInfo("joker", "조커", "자신을 죽인 플레이어를 함께 죽이는 미러링 효과", Material.NAME_TAG));
@@ -357,7 +410,7 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("glasscannon", "유리대포", "체력은 줄지만 공격력이 증가. 공격력/체력을 직접 조절 가능", Material.GLASS));
         putAbility(new AbilityInfo("hotspring", "온탕", "상대와 같은 물에 들어가 있으면 상대가 용암틱 피해를 입음. 자신은 피해 감소", Material.WATER_BUCKET));
         putAbility(new AbilityInfo("guillotine", "단두대", "바라보는 3x3 지역에 모루를 떨어뜨려 공격. 본인은 모루 피해 면역", Material.ANVIL));
-        putAbility(new AbilityInfo("archer", "아처", "근접 공격 불가. 전용 활/화살 지급, 능력 사용 및 처치 시 화살 수급", Material.CROSSBOW));
+        putAbility(new AbilityInfo("archer", "아처", "근접 공격 불가. 전용 활/화살 지급, 능력 사용 및 처치 시 화살 수급", Material.BOW));
         putAbility(new AbilityInfo("reporter", "기자", "원하는 플레이어 능력 전체공개, 대상은 발광과 스턴에 걸림", Material.SPYGLASS));
         putAbility(new AbilityInfo("backattacker", "백어택커", "뒤를 공격하면 추가 피해. 능력 사용 시 바라보는 방향으로 도약", Material.GOLDEN_SWORD));
         putAbility(new AbilityInfo("bangbang", "방방", "공중에 있을 때 피해를 받지 않음. 최대 체력은 8칸", Material.SLIME_BLOCK));
@@ -372,9 +425,10 @@ public class AbilityPickManager implements Listener {
         putReward(new RewardInfo("gambler_diamond", "도박꾼의 다이아", "30% 확률로 상대 즉사, 70% 확률로 본인 즉사", Material.DIAMOND));
         putReward(new RewardInfo("ender_pearl", "엔더진주", "엔더진주 1개를 지급받습니다.", Material.ENDER_PEARL));
         putReward(new RewardInfo("fire_ticket", "발화 인챈트권", "가지고 있는 철검에 발화 인챈트를 부여합니다.", Material.ENCHANTED_BOOK));
-        putReward(new RewardInfo("scientist_totem", "과학자의 토템", "정체를 알 수 없는 불사의 토템 1개를 지급받습니다.", Material.TOTEM_OF_UNDYING));
+        putReward(new RewardInfo("scientist_secret", "과학자의 토템", "정체를 알 수 없는 불사의 토템 1개를 지급받습니다.", Material.TOTEM_OF_UNDYING));
         putReward(new RewardInfo("adaptive_shield", "적응형 보호막", "우클릭 시 주변 플레이어 수에 비례해 노란 체력을 얻습니다.", Material.SHIELD));
         putReward(new RewardInfo("old_punishment_postcard", "낡은 징벌의 엽서", "사용 시 랜덤 플레이어 1명에게 독과 구속을 5초 부여합니다.", Material.PAPER));
         putReward(new RewardInfo("thor_trident", "토르의 삼지창", "던지면 착지 지점에 약한 번개가 내리칩니다.", Material.TRIDENT));
+        putReward(new RewardInfo("stat_anvil", "능력치 모루", "우클릭시 랜덤 능력치를 획득합니다.", Material.ANVIL));
     }
 }

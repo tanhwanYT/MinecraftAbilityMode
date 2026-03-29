@@ -32,7 +32,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.player.PlayerMoveEvent;
 
-public class AbilitySystem implements Listener, CommandExecutor {
+public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.command.TabCompleter {
     private final JavaPlugin plugin;
     // 능력 등록소: id -> 능력 구현체
     private final Map<String, Ability> registry = new HashMap<>();
@@ -87,6 +87,78 @@ public class AbilitySystem implements Listener, CommandExecutor {
 
     public PlayerState getState(Player player) {
         return states.computeIfAbsent(player.getUniqueId(), PlayerState::new);
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
+        if (!cmd.getName().equalsIgnoreCase("ability")) {
+            return Collections.emptyList();
+        }
+
+        List<String> result = new ArrayList<>();
+
+        // /ability <subcommand>
+        if (args.length == 1) {
+            List<String> subs = Arrays.asList(
+                    "me",
+                    "give",
+                    "reroll",
+                    "rerollall",
+                    "start",
+                    "startpick",
+                    "rerollitem"
+            );
+            return partialMatch(args[0], subs);
+        }
+
+        // /ability give <player> <abilityId>
+        if (args[0].equalsIgnoreCase("give")) {
+            if (args.length == 2) {
+                List<String> names = new ArrayList<>();
+                for (Player p : plugin.getServer().getOnlinePlayers()) {
+                    names.add(p.getName());
+                }
+                return partialMatch(args[1], names);
+            }
+
+            if (args.length == 3) {
+                return partialMatch(args[2], new ArrayList<>(registry.keySet()));
+            }
+        }
+
+        // /ability reroll <player>
+        if (args[0].equalsIgnoreCase("reroll")) {
+            if (args.length == 2) {
+                List<String> names = new ArrayList<>();
+                for (Player p : plugin.getServer().getOnlinePlayers()) {
+                    names.add(p.getName());
+                }
+                return partialMatch(args[1], names);
+            }
+        }
+
+        // /ability rerollitem <amount>
+        if (args[0].equalsIgnoreCase("rerollitem")) {
+            if (args.length == 2) {
+                return partialMatch(args[1], Arrays.asList("1", "2", "3", "5", "10"));
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> partialMatch(String input, Collection<String> candidates) {
+        String lower = input.toLowerCase(Locale.ROOT);
+        List<String> result = new ArrayList<>();
+
+        for (String s : candidates) {
+            if (s.toLowerCase(Locale.ROOT).startsWith(lower)) {
+                result.add(s);
+            }
+        }
+
+        Collections.sort(result);
+        return result;
     }
 
     public void grant(Player player, Ability ability) {
