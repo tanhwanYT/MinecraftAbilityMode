@@ -1,27 +1,43 @@
 package my.pkg;
 
-import my.pkg.abilities.Ability;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.WorldBorder;
+import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Player;
-import org.bukkit.event.*;
-import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
-import java.util.concurrent.TimeUnit;
-import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.scoreboard.*;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.ScoreboardManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class GameManager implements Listener {
 
@@ -69,6 +85,13 @@ public class GameManager implements Listener {
     private final Location showdownLocA;
     private final Location showdownLocB;
     private static final int PREP_EFFECT_TICKS = (1 * 240 + 5) * 20; // 4분 + 여유 5초
+
+    //쇼다운 승부예측
+    private static final String SHOWDOWN_VOTE_TITLE = "§6쇼다운 승부예측";
+    private final Map<UUID, UUID> showdownVotes = new ConcurrentHashMap<>(); // 관전자 -> 예측 대상
+    private UUID showdownPlayerAId;
+    private UUID showdownPlayerBId;
+    private boolean showdownVotingOpen = false;
 
     private void applyPrepBuffs() {
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -389,20 +412,22 @@ public class GameManager implements Listener {
 
         phase = Phase.SHOWDOWN;
 
-        // ✅ 쇼다운 시작 시 월드보더를 마지막 단계까지 축소
         World w = Bukkit.getWorlds().get(0);
         WorldBorder border = w.getWorldBorder();
         double finalSize = borderSizes[borderSizes.length - 1];
         shrinkIndex = borderSizes.length - 1;
 
-        // 바로 줄이면 너무 갑작스러우니까 10초 동안 축소
         border.setSize(finalSize, TimeUnit.SECONDS, 10L);
         Bukkit.broadcastMessage("§c[자기장] §f쇼다운이 시작되어 자기장이 최종 단계까지 축소됩니다! §7(크기: " + (int) finalSize + ")");
 
         Player a = left.get(0);
         Player b = left.get(1);
 
-        // 관전자는 자동 스펙 처리(원하면)
+        showdownPlayerAId = a.getUniqueId();
+        showdownPlayerBId = b.getUniqueId();
+        showdownVotes.clear();
+        showdownVotingOpen = true;
+
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!alive.contains(p.getUniqueId())) {
                 p.setGameMode(GameMode.SPECTATOR);
@@ -413,8 +438,200 @@ public class GameManager implements Listener {
         b.teleport(showdownLocB);
 
         Bukkit.broadcastMessage("§6[결투] §f남은 두 명이 결투장으로 이동합니다!");
+        Bukkit.broadcastMessage("§6[승부예측] §f관전자들은 인벤토리 UI에서 누가 이길지 투표하세요!");
+
+        openShowdownVoteUIForAllSpectators();
+        broadcastVoteStatus();
+
         World showw = showdownLocA.getWorld();
-        if (w != null) showw.playSound(showdownLocA, Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.2f);
+        if (showw != null) {
+            showw.playSound(showdownLocA, Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.2f);
+        }
+    }
+
+    private boolean isSpectatorVoter(Player p) {
+        return p != null
+                && p.isOnline()
+                && !alive.contains(p.getUniqueId())
+                && p.getGameMode() == GameMode.SPECTATOR;
+    }
+
+    private int getVoteCount(UUID targetId) {
+        int count = 0;
+        for (UUID voted : showdownVotes.values()) {
+            if (Objects.equals(voted, targetId)) count++;
+        }
+        return count;
+    }
+
+    private int getTotalVotes() {
+        return showdownVotes.size();
+    }
+
+    private ItemStack createVoteHead(Player target) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta != null) {
+            meta.setOwningPlayer(target);
+            meta.setDisplayName("§e" + target.getName());
+
+            int votes = getVoteCount(target.getUniqueId());
+            List<String> lore = new ArrayList<>();
+            lore.add("§7이 플레이어의 승리를 예측합니다.");
+            lore.add("§7현재 득표수: §a" + votes + "표");
+            lore.add(" ");
+            lore.add("§f클릭하여 투표");
+            meta.setLore(lore);
+
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            head.setItemMeta(meta);
+        }
+        return head;
+    }
+
+    private void openShowdownVoteUI(Player spectator) {
+        if (!showdownVotingOpen) {
+            spectator.sendMessage("§c[승부예측] 현재 투표가 열려있지 않습니다.");
+            return;
+        }
+
+        Player a = showdownPlayerAId == null ? null : Bukkit.getPlayer(showdownPlayerAId);
+        Player b = showdownPlayerBId == null ? null : Bukkit.getPlayer(showdownPlayerBId);
+
+        if (a == null || b == null) {
+            spectator.sendMessage("§c[승부예측] 쇼다운 플레이어 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        Inventory inv = Bukkit.createInventory(null, 27, SHOWDOWN_VOTE_TITLE);
+        inv.setItem(11, createVoteHead(a));
+        inv.setItem(15, createVoteHead(b));
+
+        spectator.openInventory(inv);
+    }
+
+    private void openShowdownVoteUIForAllSpectators() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (isSpectatorVoter(p)) {
+                openShowdownVoteUI(p);
+            }
+        }
+    }
+
+    private void broadcastVoteStatus() {
+        Player a = showdownPlayerAId == null ? null : Bukkit.getPlayer(showdownPlayerAId);
+        Player b = showdownPlayerBId == null ? null : Bukkit.getPlayer(showdownPlayerBId);
+
+        if (a == null || b == null) return;
+
+        int aVotes = getVoteCount(a.getUniqueId());
+        int bVotes = getVoteCount(b.getUniqueId());
+        int total = aVotes + bVotes;
+
+        if (total <= 0) {
+            Bukkit.broadcastMessage("§6[승부예측] §f아직 투표가 없습니다.");
+            return;
+        }
+
+        double aPct = (aVotes * 100.0) / total;
+        double bPct = (bVotes * 100.0) / total;
+
+        Bukkit.broadcastMessage(
+                "§6[승부예측] §e" + a.getName() + "§f: §a" + aVotes + "표 §7(" + String.format("%.1f", aPct) + "%) "
+                        + "§f| §e" + b.getName() + "§f: §a" + bVotes + "표 §7(" + String.format("%.1f", bPct) + "%)"
+        );
+    }
+
+    private void closeShowdownVoting() {
+        showdownVotingOpen = false;
+    }
+
+    private void resetShowdownVoting() {
+        showdownVotes.clear();
+        showdownPlayerAId = null;
+        showdownPlayerBId = null;
+        showdownVotingOpen = false;
+    }
+
+    private void announcePredictionResult(Player winner) {
+        if (winner == null) return;
+
+        int winnerVotes = getVoteCount(winner.getUniqueId());
+        int totalVotes = getTotalVotes();
+
+        Bukkit.broadcastMessage("§6[승부예측 결과] §e" + winner.getName() + "§f에게 §a" + winnerVotes + "표§f가 몰렸습니다. §7(총 투표: " + totalVotes + "표)");
+
+        if (totalVotes > 0) {
+            List<String> correctSpectators = new ArrayList<>();
+            for (Map.Entry<UUID, UUID> entry : showdownVotes.entrySet()) {
+                if (Objects.equals(entry.getValue(), winner.getUniqueId())) {
+                    Player p = Bukkit.getPlayer(entry.getKey());
+                    if (p != null) correctSpectators.add(p.getName());
+                }
+            }
+
+            if (correctSpectators.isEmpty()) {
+                Bukkit.broadcastMessage("§7[승부예측] 정답을 맞춘 관전자가 없습니다.");
+            } else {
+                Bukkit.broadcastMessage("§a[승부예측] 적중: §f" + String.join(", ", correctSpectators));
+            }
+        }
+    }
+
+    @EventHandler
+    public void onShowdownVoteClick(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player)) return;
+        if (e.getView().getTitle() == null || !e.getView().getTitle().equals(SHOWDOWN_VOTE_TITLE)) return;
+
+        e.setCancelled(true);
+
+        if (!showdownVotingOpen) {
+            player.closeInventory();
+            player.sendMessage("§c[승부예측] 투표가 종료되었습니다.");
+            return;
+        }
+
+        if (!isSpectatorVoter(player)) {
+            player.sendMessage("§c[승부예측] 탈락한 관전자만 투표할 수 있습니다.");
+            return;
+        }
+
+        ItemStack clicked = e.getCurrentItem();
+        if (clicked == null || clicked.getType() != Material.PLAYER_HEAD) return;
+
+        Player a = showdownPlayerAId == null ? null : Bukkit.getPlayer(showdownPlayerAId);
+        Player b = showdownPlayerBId == null ? null : Bukkit.getPlayer(showdownPlayerBId);
+        if (a == null || b == null) {
+            player.sendMessage("§c[승부예측] 투표 대상을 찾을 수 없습니다.");
+            return;
+        }
+
+        UUID votedTarget = null;
+        int slot = e.getRawSlot();
+
+        if (slot == 11) {
+            votedTarget = a.getUniqueId();
+        } else if (slot == 15) {
+            votedTarget = b.getUniqueId();
+        } else {
+            return;
+        }
+
+        UUID oldVote = showdownVotes.put(player.getUniqueId(), votedTarget);
+        Player votedPlayer = Bukkit.getPlayer(votedTarget);
+
+        if (votedPlayer != null) {
+            if (Objects.equals(oldVote, votedTarget)) {
+                player.sendMessage("§e[승부예측] 이미 §f" + votedPlayer.getName() + "§e에게 투표했습니다.");
+            } else {
+                player.sendMessage("§a[승부예측] §f" + votedPlayer.getName() + "§a의 승리에 투표했습니다.");
+                Bukkit.broadcastMessage("§6[승부예측] §f" + player.getName() + "님이 투표했습니다.");
+                broadcastVoteStatus();
+            }
+        }
+
+        player.closeInventory();
     }
 
     private void checkWinner() {
@@ -430,13 +647,16 @@ public class GameManager implements Listener {
 
     private void announceWinner(Player winner) {
         phase = Phase.ENDED;
+        closeShowdownVoting();
         stopAllTasks();
 
         Bukkit.broadcastMessage("§b[우승] §e" + winner.getName() + "§f 님이 우승했습니다!");
+        announcePredictionResult(winner);
+
         World w = winner.getWorld();
         w.playSound(winner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
 
-        // (선택) 전원 로비 텔포/초기화
+        resetShowdownVoting();
     }
 
     private void endGameNoWinner() {
