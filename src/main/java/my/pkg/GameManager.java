@@ -33,6 +33,10 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,6 +96,10 @@ public class GameManager implements Listener {
     private UUID showdownPlayerAId;
     private UUID showdownPlayerBId;
     private boolean showdownVotingOpen = false;
+
+    // 중도참가 관련
+    private static final String LATE_JOIN_TITLE = "§b중도 참가 선택";
+    private final Set<UUID> pendingLateJoinChoice = ConcurrentHashMap.newKeySet();
 
     private void applyPrepBuffs() {
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -174,6 +182,10 @@ public class GameManager implements Listener {
     }
 
     private void initBossBar() {
+        if (bossBar != null) {
+            bossBar.removeAll();
+        }
+
         bossBar = Bukkit.createBossBar("", BarColor.WHITE, BarStyle.SOLID);
         bossBar.setVisible(true);
 
@@ -579,6 +591,221 @@ public class GameManager implements Listener {
         }
     }
 
+    private boolean isGameInProgressForLateJoin() {
+        return phase == Phase.PREP || phase == Phase.RUNNING;
+    }
+
+    private ItemStack createMenuItem(Material material, String name, List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private void openLateJoinUI(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 27, LATE_JOIN_TITLE);
+
+        inv.setItem(11, createMenuItem(
+                Material.GREEN_WOOL,
+                "§a목숨 1개로 참가하기",
+                List.of(
+                        "§7지금 게임에 참가합니다.",
+                        "§7시작 장비: §f가죽갑옷 풀셋, 나무검",
+                        "§7남은 목숨: §c1"
+                )
+        ));
+
+        inv.setItem(15, createMenuItem(
+                Material.RED_WOOL,
+                "§c관전하기",
+                List.of(
+                        "§7이번 판은 관전자로 참여합니다."
+                )
+        ));
+
+        player.openInventory(inv);
+    }
+
+    private void setSpectator(Player player) {
+        alive.remove(player.getUniqueId());
+        pendingRespawn.remove(player.getUniqueId());
+        lives.remove(player.getUniqueId());
+
+        player.setGameMode(GameMode.SPECTATOR);
+        player.getInventory().clear();
+        player.getEquipment().clear();
+
+        Location specLoc = Bukkit.getWorlds().get(0).getSpawnLocation().clone().add(0.5, 1, 0.5);
+        player.teleport(specLoc);
+
+        if (scoreboard != null) {
+            player.setScoreboard(scoreboard);
+        }
+    }
+
+    private void giveLateJoinKit(Player player) {
+        PlayerInventory inv = player.getInventory();
+        inv.clear();
+
+        inv.addItem(new ItemStack(Material.WOODEN_SWORD));
+
+        inv.setHelmet(new ItemStack(Material.LEATHER_HELMET));
+        inv.setChestplate(new ItemStack(Material.LEATHER_CHESTPLATE));
+        inv.setLeggings(new ItemStack(Material.LEATHER_LEGGINGS));
+        inv.setBoots(new ItemStack(Material.LEATHER_BOOTS));
+    }
+
+    private void joinMidGame(Player player) {
+        if (!isGameInProgressForLateJoin()) {
+            player.sendMessage("§c[게임] 지금은 중도 참가가 불가능합니다.");
+            return;
+        }
+
+        if (phase == Phase.SHOWDOWN) {
+            player.sendMessage("§c[게임] 쇼다운 중에는 참가할 수 없습니다.");
+            setSpectator(player);
+            return;
+        }
+
+        UUID id = player.getUniqueId();
+
+        alive.add(id);
+        lives.put(id, 1);
+        pendingRespawn.remove(id);
+
+        player.setGameMode(GameMode.SURVIVAL);
+        giveLateJoinKit(player);
+
+        Location spawn = pickRandomRespawn(player.getWorld());
+        player.teleport(spawn);
+
+        double maxHealth = 20.0;
+        if (player.getAttribute(Attribute.MAX_HEALTH) != null) {
+            maxHealth = player.getAttribute(Attribute.MAX_HEALTH).getValue();
+        }
+        player.setHealth(Math.min(maxHealth, player.getHealth()));
+        player.setFoodLevel(20);
+        player.setSaturation(20);
+
+        // 준비 시간 중간 참가면 준비 버프도 같이 적용
+        if (phase == Phase.PREP) {
+            player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PREP_EFFECT_TICKS, 4, true, false, true));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, PREP_EFFECT_TICKS, 0, true, false, true));
+        }
+
+        if (bossBar != null) {
+            bossBar.addPlayer(player);
+        }
+
+        if (scoreboard != null) {
+            player.setScoreboard(scoreboard);
+        }
+        updateScoreboardAll();
+
+        Bukkit.broadcastMessage("§a[중도참가] §f" + player.getName() + "§7 님이 §c목숨 1개§7로 참가했습니다.");
+        player.sendMessage("§a[게임] 목숨 1개로 게임에 참가했습니다!");
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player player = e.getPlayer();
+
+        // 보스바는 접속하면 일단 보여주기
+        if (bossBar != null) {
+            bossBar.addPlayer(player);
+        }
+
+        // 게임 안 하는 상태면 기본 대기
+        if (phase == Phase.IDLE || phase == Phase.ENDED) {
+            if (scoreboard != null) player.setScoreboard(scoreboard);
+            return;
+        }
+
+        // 쇼다운 중이면 무조건 관전
+        if (phase == Phase.SHOWDOWN) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
+                setSpectator(player);
+                player.sendMessage("§6[게임] 현재 쇼다운 중이므로 관전으로 참가합니다.");
+
+                if (showdownVotingOpen) {
+                    openShowdownVoteUI(player);
+                }
+            }, 20L);
+            return;
+        }
+
+        // 준비/진행 중이면 선택권 제공
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+
+            pendingLateJoinChoice.add(player.getUniqueId());
+            player.setGameMode(GameMode.ADVENTURE);
+            player.getInventory().clear();
+            player.getEquipment().clear();
+
+            Location lobby = Bukkit.getWorlds().get(0).getSpawnLocation().clone().add(0.5, 1, 0.5);
+            player.teleport(lobby);
+
+            if (scoreboard != null) {
+                player.setScoreboard(scoreboard);
+            }
+
+            player.sendMessage("§b[게임] 현재 진행 중인 게임입니다.");
+            player.sendMessage("§f관전할지, 목숨 1개로 참가할지 선택해주세요.");
+            openLateJoinUI(player);
+        }, 20L);
+    }
+
+    @EventHandler
+    public void onLateJoinChoiceClick(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player)) return;
+        if (e.getView().getTitle() == null || !e.getView().getTitle().equals(LATE_JOIN_TITLE)) return;
+
+        e.setCancelled(true);
+
+        UUID id = player.getUniqueId();
+        if (!pendingLateJoinChoice.contains(id)) {
+            player.closeInventory();
+            return;
+        }
+
+        int slot = e.getRawSlot();
+
+        if (slot == 11) {
+            pendingLateJoinChoice.remove(id);
+            player.closeInventory();
+            joinMidGame(player);
+        } else if (slot == 15) {
+            pendingLateJoinChoice.remove(id);
+            player.closeInventory();
+            setSpectator(player);
+            player.sendMessage("§7[게임] 관전자로 참여합니다.");
+        }
+    }
+
+    @EventHandler
+    public void onLateJoinChoiceClose(InventoryCloseEvent e) {
+        if (!(e.getPlayer() instanceof Player player)) return;
+        if (e.getView().getTitle() == null || !e.getView().getTitle().equals(LATE_JOIN_TITLE)) return;
+
+        UUID id = player.getUniqueId();
+        if (!pendingLateJoinChoice.contains(id)) return;
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (!pendingLateJoinChoice.contains(id)) return;
+
+            pendingLateJoinChoice.remove(id);
+            setSpectator(player);
+            player.sendMessage("§7[게임] 선택하지 않아 관전자로 전환되었습니다.");
+        }, 1L);
+    }
+
     @EventHandler
     public void onShowdownVoteClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
@@ -657,12 +884,16 @@ public class GameManager implements Listener {
         w.playSound(winner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
 
         resetShowdownVoting();
+        pendingLateJoinChoice.clear();
     }
 
     private void endGameNoWinner() {
         phase = Phase.ENDED;
+        closeShowdownVoting();
         stopAllTasks();
         Bukkit.broadcastMessage("§7[게임] 우승자 없이 종료되었습니다.");
+        resetShowdownVoting();
+        pendingLateJoinChoice.clear();
     }
 
     private void stopAllTasks() {
@@ -750,7 +981,10 @@ public class GameManager implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        alive.remove(e.getPlayer().getUniqueId());
+        UUID id = e.getPlayer().getUniqueId();
+        alive.remove(id);
+        pendingLateJoinChoice.remove(id);
+
         if (isRunning()) Bukkit.getScheduler().runTask(plugin, this::checkWinner);
     }
 }
