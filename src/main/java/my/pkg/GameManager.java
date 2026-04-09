@@ -3,12 +3,10 @@ package my.pkg;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -48,70 +46,189 @@ public class GameManager implements Listener {
     public enum Phase { IDLE, PREP, RUNNING, SHOWDOWN, ENDED }
 
     private final SupplyManager supplyManager;
-    // ===== 목숨 시스템 =====
+    private final JavaPlugin plugin;
+
     private static final int START_LIVES = 2;
+
     private final Map<UUID, Integer> lives = new ConcurrentHashMap<>();
-
-    // 죽고 리스폰할 위치(첫 죽음일 때 랜덤 리스폰용)
     private final Map<UUID, Location> pendingRespawn = new ConcurrentHashMap<>();
+    private final Set<UUID> alive = ConcurrentHashMap.newKeySet();
 
-    private  BossBar bossBar;
-    // 보더 중심
-    private Location borderCenter;
-
-    // ===== 스코어보드 =====
+    private BossBar bossBar;
     private Scoreboard scoreboard;
     private Objective livesObj;
 
-    private final JavaPlugin plugin;
-
     private Phase phase = Phase.IDLE;
 
-    private BukkitTask ticker;          // 1초마다 안내/타이머
-    private BukkitTask borderTask;      // 다음 축소 예약(선택)
-    private BukkitTask showdownGate;    // 12분 체크
+    private BukkitTask ticker;
+    private BukkitTask borderTask;
+    private BukkitTask showdownGate;
 
-    private int phaseRemainingSec = 0;  // 현재 페이즈 남은 초
+    private int phaseRemainingSec = 0;
     private int shrinkIndex = 0;
+    private boolean showdownEnabled = false;
 
-    // ✅ 살아있는 플레이어 추적 (관전자는 제외)
-    private final Set<UUID> alive = ConcurrentHashMap.newKeySet();
+    // ===== 모드 설정 =====
+    private boolean miniMode = false;
 
-    // ====== 설정값 ======
-    private static final int PREP_SEC = 1 * 240;            // 준비 4분
-    private static final int SHRINK_INTERVAL_SEC = 1 * 180; // 축소 주기 3분
-    private static final int SHOWDOWN_AFTER_SEC = 8 * 60; // RUNNING 시작 후 8분
+    private int prepSec;
+    private int shrinkIntervalSec;
+    private int showdownAfterSec;
+    private double[] currentBorderSizes;
+    private int prepEffectTicks;
 
-    // 보더 단계(원하는대로 수정)
-    private final double[] borderSizes = {600, 420, 300, 200, 140, 90, 60, 40};
+    private Location borderCenter;
+    private Location showdownLocA;
+    private Location showdownLocB;
 
-    // 쇼다운 장소(원하는 좌표로 바꿔)
-    private final Location showdownLocA;
-    private final Location showdownLocB;
-    private static final int PREP_EFFECT_TICKS = (1 * 240 + 5) * 20; // 4분 + 여유 5초
+    private double randomSpawnMinX;
+    private double randomSpawnMaxX;
+    private double randomSpawnMinZ;
+    private double randomSpawnMaxZ;
 
-    //쇼다운 승부예측
+    // ===== 일반 모드 기본값 =====
+    private static final int NORMAL_PREP_SEC = 240;
+    private static final int NORMAL_SHRINK_INTERVAL_SEC = 180;
+    private static final int NORMAL_SHOWDOWN_AFTER_SEC = 8 * 60;
+    private static final double[] NORMAL_BORDER_SIZES = {600, 420, 300, 200, 140, 90, 60, 40};
+
+    // ===== 미니 모드 기본값 =====
+    private static final int MINI_PREP_SEC = 60;
+    private static final int MINI_SHRINK_INTERVAL_SEC = 90;
+    private static final int MINI_SHOWDOWN_AFTER_SEC = 180;
+    private static final double[] MINI_BORDER_SIZES = {150, 100, 70, 40, 25};
+
+    // 쇼다운 승부예측
     private static final String SHOWDOWN_VOTE_TITLE = "§6쇼다운 승부예측";
-    private final Map<UUID, UUID> showdownVotes = new ConcurrentHashMap<>(); // 관전자 -> 예측 대상
+    private final Map<UUID, UUID> showdownVotes = new ConcurrentHashMap<>();
     private UUID showdownPlayerAId;
     private UUID showdownPlayerBId;
     private boolean showdownVotingOpen = false;
 
-    // 중도참가 관련
+    // 중도참가
     private static final String LATE_JOIN_TITLE = "§b중도 참가 선택";
     private final Set<UUID> pendingLateJoinChoice = ConcurrentHashMap.newKeySet();
+
+    public GameManager(SupplyManager supplyManager, JavaPlugin plugin) {
+        this.supplyManager = supplyManager;
+        this.plugin = plugin;
+
+        applyNormalModeConfig();
+    }
+
+    public Phase getPhase() {
+        return phase;
+    }
+
+    public boolean isRunning() {
+        return phase == Phase.PREP || phase == Phase.RUNNING || phase == Phase.SHOWDOWN;
+    }
+
+    public boolean isAlive(Player p) {
+        return alive.contains(p.getUniqueId());
+    }
+
+    public boolean isMiniMode() {
+        return miniMode;
+    }
+
+    private void applyNormalModeConfig() {
+        World w = Bukkit.getWorlds().get(0);
+
+        miniMode = false;
+        prepSec = NORMAL_PREP_SEC;
+        shrinkIntervalSec = NORMAL_SHRINK_INTERVAL_SEC;
+        showdownAfterSec = NORMAL_SHOWDOWN_AFTER_SEC;
+        currentBorderSizes = Arrays.copyOf(NORMAL_BORDER_SIZES, NORMAL_BORDER_SIZES.length);
+        prepEffectTicks = (prepSec + 5) * 20;
+
+        borderCenter = new Location(w, -183.0, w.getHighestBlockYAt(100, 100), -93.0);
+        showdownLocA = new Location(w, -183.0, 64, -118.5, 180f, 0f);
+        showdownLocB = new Location(w, -183.0, 64, -68.5, 0f, 0f);
+
+        randomSpawnMinX = -140.0;
+        randomSpawnMaxX = 70.0;
+        randomSpawnMinZ = -200.0;
+        randomSpawnMaxZ = 45.0;
+    }
+
+    private void applyMiniModeConfig() {
+        World w = Bukkit.getWorlds().get(0);
+
+        miniMode = true;
+        prepSec = MINI_PREP_SEC;
+        shrinkIntervalSec = MINI_SHRINK_INTERVAL_SEC;
+        showdownAfterSec = MINI_SHOWDOWN_AFTER_SEC;
+        currentBorderSizes = Arrays.copyOf(MINI_BORDER_SIZES, MINI_BORDER_SIZES.length);
+        prepEffectTicks = (prepSec + 5) * 20;
+
+        // 유저가 준 미니맵 정보
+        borderCenter = new Location(w, -34.0, w.getHighestBlockYAt(-34, 25), 25.0);
+
+        // 필요하면 여기 쇼다운 좌표는 나중에 더 다듬어도 됨
+        showdownLocA = new Location(w, -34.0, 64, 15.5, 180f, 0f);
+        showdownLocB = new Location(w, -34.0, 64, 35.5, 0f, 0f);
+
+        randomSpawnMinX = -95.0;
+        randomSpawnMaxX = 23.0;
+        randomSpawnMinZ = -30.0;
+        randomSpawnMaxZ = 85.0;
+    }
+
+    public void startGame() {
+        applyNormalModeConfig();
+        startConfiguredGame();
+    }
+
+    public void startMiniGame() {
+        applyMiniModeConfig();
+        startConfiguredGame();
+    }
+
+    private void startConfiguredGame() {
+        if (phase != Phase.IDLE && phase != Phase.ENDED) return;
+
+        phase = Phase.PREP;
+        shrinkIndex = 0;
+        showdownEnabled = false;
+
+        alive.clear();
+        lives.clear();
+        pendingRespawn.clear();
+        pendingLateJoinChoice.clear();
+        resetShowdownVoting();
+
+        initBossBar();
+
+        if (supplyManager != null) supplyManager.start();
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            setAlivePlayer(p);
+            lives.put(p.getUniqueId(), START_LIVES);
+        }
+
+        initScoreboard();
+        Bukkit.broadcastMessage("§a[게임] 모든 플레이어 목숨: §e" + START_LIVES);
+
+        setupInitialBorder();
+        applyPrepBuffs();
+
+        phaseRemainingSec = prepSec;
+        startTicker();
+
+        if (miniMode) {
+            Bukkit.broadcastMessage("§d[미니 도능] §f준비 시작! §e" + prepSec + "초§f 후 게임이 시작됩니다.");
+        } else {
+            Bukkit.broadcastMessage("§a[게임] 준비 시작! §f" + (prepSec / 60) + "분 후 게임이 시작됩니다.");
+        }
+    }
 
     private void applyPrepBuffs() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!isAlive(p)) continue;
 
-            // 저항 II (원하면 0=I, 1=II)
-            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PREP_EFFECT_TICKS, 4, true, false, true));
-
-            // 포화 (앰프 0이면 충분)
-            p.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, PREP_EFFECT_TICKS, 0, true, false, true));
-
-            // 혹시 몰라서 배고픔 꽉
+            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, prepEffectTicks, 4, true, false, true));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, prepEffectTicks, 0, true, false, true));
             p.setFoodLevel(20);
             p.setSaturation(20);
         }
@@ -122,63 +239,6 @@ public class GameManager implements Listener {
             p.removePotionEffect(PotionEffectType.RESISTANCE);
             p.removePotionEffect(PotionEffectType.SATURATION);
         }
-    }
-
-    public GameManager(SupplyManager supplyManager, JavaPlugin plugin) {
-        this.supplyManager = supplyManager;
-        this.plugin = plugin;
-
-        World w = Bukkit.getWorlds().get(0); // 기본 월드
-        // 예시: 스폰 근처
-        this.borderCenter = new Location(w, -183.0, w.getHighestBlockYAt(100, 100), -93.0);
-        this.showdownLocA = new Location(w, -183.0, 64, -118.5, 180f, 0f);
-        this.showdownLocB = new Location(w, -183.0, 64, -68.5, 0f, 0f);
-    }
-
-    public Phase getPhase() { return phase; }
-
-    public boolean isRunning() {
-        return phase == Phase.PREP || phase == Phase.RUNNING || phase == Phase.SHOWDOWN;
-    }
-
-    public boolean isAlive(Player p) {
-        return alive.contains(p.getUniqueId());
-    }
-
-    // ===== 시작 =====
-    public void startGame() {
-        if (phase != Phase.IDLE && phase != Phase.ENDED) return;
-
-        phase = Phase.PREP;
-        shrinkIndex = 0;
-        alive.clear();
-        lives.clear();
-        pendingRespawn.clear();
-        initBossBar();
-
-
-        if (supplyManager != null) supplyManager.start();
-        // 온라인 플레이어 세팅
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            setAlivePlayer(p);
-            lives.put(p.getUniqueId(), START_LIVES);
-        }
-
-        initScoreboard();
-        Bukkit.broadcastMessage("§a[게임] 모든 플레이어 목숨: §e" + START_LIVES);
-
-
-        // 보더 초기화
-        setupInitialBorder();
-
-        // 재생 포화
-        applyPrepBuffs();
-
-        // 준비시간 시작
-        phaseRemainingSec = PREP_SEC;
-        startTicker();
-
-        Bukkit.broadcastMessage("§a[게임] 준비 시작! §f4분 후 게임이 시작됩니다.");
     }
 
     private void initBossBar() {
@@ -202,11 +262,11 @@ public class GameManager implements Listener {
         double progress = 1.0;
 
         if (phase == Phase.PREP) {
-            title = "§a준비중 §f| 시작까지 §e" + phaseRemainingSec + "초";
-            progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) PREP_SEC));
+            title = (miniMode ? "§d미니 도능 준비중" : "§a준비중") + " §f| 시작까지 §e" + phaseRemainingSec + "초";
+            progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) prepSec));
         } else if (phase == Phase.RUNNING) {
-            title = "§c진행중 §f| 다음 축소까지 §e" + phaseRemainingSec + "초";
-            progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) SHRINK_INTERVAL_SEC));
+            title = (miniMode ? "§d미니 도능 진행중" : "§c진행중") + " §f| 다음 축소까지 §e" + phaseRemainingSec + "초";
+            progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) shrinkIntervalSec));
         } else if (phase == Phase.SHOWDOWN) {
             title = "§6결투 §f| 1 vs 1";
             progress = 1.0;
@@ -230,17 +290,10 @@ public class GameManager implements Listener {
     private Location pickRandomRespawn(World w) {
         WorldBorder border = w.getWorldBorder();
 
-        // 원하는 랜덤 스폰 허용 구역
-        final double minX = -140.0;
-        final double maxX = 70.0;
-        final double minZ = -200.0;
-        final double maxZ = 45.0;
-
         for (int i = 0; i < 120; i++) {
-            double x = ThreadLocalRandom.current().nextDouble(minX, maxX);
-            double z = ThreadLocalRandom.current().nextDouble(minZ, maxZ);
+            double x = ThreadLocalRandom.current().nextDouble(randomSpawnMinX, randomSpawnMaxX);
+            double z = ThreadLocalRandom.current().nextDouble(randomSpawnMinZ, randomSpawnMaxZ);
 
-            // 먼저 직사각형 내부에서 뽑은 뒤, 월드보더 안쪽인지 체크
             Location test = new Location(w, x, w.getSpawnLocation().getY(), z);
             if (!border.isInside(test)) continue;
 
@@ -251,31 +304,20 @@ public class GameManager implements Listener {
             Location loc = new Location(w, bx + 0.5, y + 1.0, bz + 0.5);
 
             Material below = w.getBlockAt(bx, y, bz).getType();
-
-            // 위험 블록 제외
             if (below == Material.LAVA || below == Material.MAGMA_BLOCK || below == Material.CACTUS) continue;
 
-            // 머리/몸 공간 확보
             if (!w.getBlockAt(bx, y + 1, bz).isPassable()) continue;
             if (!w.getBlockAt(bx, y + 2, bz).isPassable()) continue;
-
-            // 최종 위치도 월드보더 안쪽인지 다시 확인
             if (!border.isInside(loc)) continue;
 
             return loc;
         }
 
-        // 실패 시 안전한 기본 위치
-        Location fallback = w.getSpawnLocation().clone().add(0.5, 1, 0.5);
-        if (border.isInside(fallback)) return fallback;
-
-        // 스폰도 보더 밖이면 보더 중심으로 fallback
-        Location center = border.getCenter();
-        int y = w.getHighestBlockYAt(center);
-        return new Location(w, center.getX() + 0.5, y + 1.0, center.getZ() + 0.5);
+        Location fallback = borderCenter.clone();
+        int y = w.getHighestBlockYAt((int) Math.floor(fallback.getX()), (int) Math.floor(fallback.getZ()));
+        return new Location(w, fallback.getX() + 0.5, y + 1.0, fallback.getZ() + 0.5);
     }
 
-    // ===== 보더 =====
     private void setupInitialBorder() {
         World w = Bukkit.getWorlds().get(0);
         WorldBorder border = w.getWorldBorder();
@@ -288,21 +330,21 @@ public class GameManager implements Listener {
         border.setWarningDistance(8);
         border.setWarningTime(10);
 
-        border.setSize(borderSizes[0]);
+        border.setSize(currentBorderSizes[0]);
     }
 
     private void shrinkBorderOneStep() {
         World w = Bukkit.getWorlds().get(0);
         WorldBorder border = w.getWorldBorder();
 
-        int next = Math.min(shrinkIndex + 1, borderSizes.length - 1);
+        int next = Math.min(shrinkIndex + 1, currentBorderSizes.length - 1);
         if (next == shrinkIndex) return;
 
-        double newSize = borderSizes[next];
+        double newSize = currentBorderSizes[next];
         shrinkIndex = next;
 
-        border.setSize(newSize, TimeUnit.SECONDS, 10L);// 10초 동안 부드럽게 줄이기(원하면 60초로)
-        Bukkit.broadcastMessage("§c[자기장] §f자기장이 축소됩니다! §7(새 크기: " + (int)newSize + ")");
+        border.setSize(newSize, TimeUnit.SECONDS, 10L);
+        Bukkit.broadcastMessage("§c[자기장] §f자기장이 축소됩니다! §7(새 크기: " + (int) newSize + ")");
         w.playSound(border.getCenter(), Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 0.8f);
     }
 
@@ -314,7 +356,6 @@ public class GameManager implements Listener {
         livesObj = scoreboard.registerNewObjective("lives", "dummy", "§c남은 목숨");
         livesObj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        // 모든 온라인 플레이어에게 적용
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.setScoreboard(scoreboard);
         }
@@ -325,7 +366,6 @@ public class GameManager implements Listener {
     private void updateScoreboardAll() {
         if (scoreboard == null || livesObj == null) return;
 
-        // 점수 갱신
         for (UUID id : lives.keySet()) {
             Player p = Bukkit.getPlayer(id);
             if (p == null) continue;
@@ -333,22 +373,16 @@ public class GameManager implements Listener {
             int l = lives.getOrDefault(id, 0);
             livesObj.getScore("§f" + p.getName()).setScore(l);
         }
-
-        // 탈락/퇴장 등으로 목록에서 빠진 사람의 old entry 정리(선택)
-        // 너무 깔끔하게 하고 싶으면 엔트리 추적용 Set<String> 따로 관리하면 됨.
     }
 
-    // ===== 타이머/페이즈 진행 =====
     private void startTicker() {
         stopAllTasks();
 
         ticker = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            // 매초 실행
             if (!isRunning()) return;
 
             updateBossBar();
 
-            // 감소
             if (phase == Phase.PREP || phase == Phase.RUNNING) {
                 phaseRemainingSec--;
                 if (phaseRemainingSec <= 0) {
@@ -356,55 +390,41 @@ public class GameManager implements Listener {
                         clearPrepBuffs();
                         startRunningPhase();
                     } else if (phase == Phase.RUNNING) {
-                        // 축소 타이밍
                         shrinkBorderOneStep();
-                        phaseRemainingSec = SHRINK_INTERVAL_SEC;
+                        phaseRemainingSec = shrinkIntervalSec;
                     }
                 }
             }
 
-            // 쇼다운 조건: RUNNING 시작 후 12분이 지난 뒤엔 alive<=2 되면 바로 쇼다운
-            if (phase == Phase.RUNNING && shouldEnterShowdown()) {
+            if (phase == Phase.RUNNING && showdownEnabled) {
                 if (getAlivePlayers().size() <= 2) {
                     startShowdown();
                 }
             }
         }, 0L, 20L);
-
-        // RUNNING 시작 후 12분 경과 체크용 플래그
-        showdownGate = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // 12분 뒤 메시지
-            if (phase == Phase.RUNNING) {
-                Bukkit.broadcastMessage("§6[쇼다운] §f이제부터 2명 이하가 되면 결투장으로 이동합니다!");
-            }
-        }, SHOWDOWN_AFTER_SEC * 20L);
-    }
-
-    // “12분 지났는지” 판정: showdownGate가 실행된 이후를 간단히 체크하고 싶으면 boolean 플래그로도 가능
-    private boolean showdownEnabled = false;
-    private boolean shouldEnterShowdown() {
-        // 가장 간단: 12분 후 task에서 플래그 세팅
-        // (위 showdownGate를 아래처럼 바꾸면 됨)
-        return showdownEnabled;
     }
 
     private void startRunningPhase() {
         phase = Phase.RUNNING;
-        phaseRemainingSec = SHRINK_INTERVAL_SEC;
+        phaseRemainingSec = shrinkIntervalSec;
 
-        // 12분 후 쇼다운 활성화 플래그
         showdownEnabled = false;
         if (showdownGate != null) showdownGate.cancel();
+
         showdownGate = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             showdownEnabled = true;
             if (phase == Phase.RUNNING) {
                 Bukkit.broadcastMessage("§6[쇼다운] §f이제부터 2명 이하가 되면 결투장으로 이동합니다!");
-                // 이미 2명 이하이면 즉시 시작
                 if (getAlivePlayers().size() <= 2) startShowdown();
             }
-        }, SHOWDOWN_AFTER_SEC * 20L);
+        }, showdownAfterSec * 20L);
 
-        Bukkit.broadcastMessage("§c[게임] §f시작!");
+        if (miniMode) {
+            Bukkit.broadcastMessage("§d[미니 도능] §f시작!");
+        } else {
+            Bukkit.broadcastMessage("§c[게임] §f시작!");
+        }
+
         World w = Bukkit.getWorlds().get(0);
         w.playSound(w.getSpawnLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 1.5f);
     }
@@ -421,13 +441,14 @@ public class GameManager implements Listener {
             endGameNoWinner();
             return;
         }
+        if (left.size() < 2) return;
 
         phase = Phase.SHOWDOWN;
 
         World w = Bukkit.getWorlds().get(0);
         WorldBorder border = w.getWorldBorder();
-        double finalSize = borderSizes[borderSizes.length - 1];
-        shrinkIndex = borderSizes.length - 1;
+        double finalSize = currentBorderSizes[currentBorderSizes.length - 1];
+        shrinkIndex = currentBorderSizes.length - 1;
 
         border.setSize(finalSize, TimeUnit.SECONDS, 10L);
         Bukkit.broadcastMessage("§c[자기장] §f쇼다운이 시작되어 자기장이 최종 단계까지 축소됩니다! §7(크기: " + (int) finalSize + ")");
@@ -691,10 +712,9 @@ public class GameManager implements Listener {
         player.setFoodLevel(20);
         player.setSaturation(20);
 
-        // 준비 시간 중간 참가면 준비 버프도 같이 적용
         if (phase == Phase.PREP) {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PREP_EFFECT_TICKS, 4, true, false, true));
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, PREP_EFFECT_TICKS, 0, true, false, true));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, prepEffectTicks, 4, true, false, true));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, prepEffectTicks, 0, true, false, true));
         }
 
         if (bossBar != null) {
@@ -714,18 +734,15 @@ public class GameManager implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
 
-        // 보스바는 접속하면 일단 보여주기
         if (bossBar != null) {
             bossBar.addPlayer(player);
         }
 
-        // 게임 안 하는 상태면 기본 대기
         if (phase == Phase.IDLE || phase == Phase.ENDED) {
             if (scoreboard != null) player.setScoreboard(scoreboard);
             return;
         }
 
-        // 쇼다운 중이면 무조건 관전
         if (phase == Phase.SHOWDOWN) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
@@ -739,7 +756,6 @@ public class GameManager implements Listener {
             return;
         }
 
-        // 준비/진행 중이면 선택권 제공
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
 
@@ -900,14 +916,13 @@ public class GameManager implements Listener {
         if (ticker != null) { ticker.cancel(); ticker = null; }
         if (borderTask != null) { borderTask.cancel(); borderTask = null; }
         if (showdownGate != null) { showdownGate.cancel(); showdownGate = null; }
-
     }
 
     private List<Player> getAlivePlayers() {
         List<Player> list = new ArrayList<>();
         for (UUID id : alive) {
             Player p = Bukkit.getPlayer(id);
-            if (p != null && p.isOnline()) {   // ✅ isDead() 체크 제거
+            if (p != null && p.isOnline()) {
                 list.add(p);
             }
         }
@@ -919,7 +934,6 @@ public class GameManager implements Listener {
         Player p = e.getPlayer();
         UUID id = p.getUniqueId();
 
-        // 탈락자는 관전(리스폰 위치는 상관없지만 깔끔하게 스폰으로)
         if (isRunning() && !alive.contains(id)) {
             e.setRespawnLocation(p.getWorld().getSpawnLocation().clone().add(0.5, 1, 0.5));
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -928,41 +942,35 @@ public class GameManager implements Listener {
             return;
         }
 
-        // 목숨 남아있으면 랜덤 리스폰 적용
         Location resp = pendingRespawn.remove(id);
         if (resp != null) {
             e.setRespawnLocation(resp);
         }
     }
 
-    // ===== 사망/퇴장 처리 =====
     @EventHandler
     public void onDeath(PlayerDeathEvent e) {
         Player dead = e.getEntity();
         UUID id = dead.getUniqueId();
 
         if (!isRunning()) return;
-        if (!alive.contains(id)) return; // 이미 탈락 처리된 사람은 무시
+        if (!alive.contains(id)) return;
 
         int left = lives.getOrDefault(id, START_LIVES) - 1;
         lives.put(id, left);
 
-        // ✅ 채팅 알림(죽을 때마다)
         if (left > 0) {
             Bukkit.broadcastMessage("§e[사망] §f" + dead.getName() + "§7 사망! 남은 목숨: §c" + left);
 
-            // 첫/두번째 죽음 => 랜덤 리스폰 예약
             World w = dead.getWorld();
             Location resp = pickRandomRespawn(w);
             pendingRespawn.put(id, resp);
 
         } else {
-            // ✅ 탈락
             Bukkit.broadcastMessage("§c[탈락] §f" + dead.getName() + "§7 님이 탈락했습니다!");
             alive.remove(id);
             pendingRespawn.remove(id);
 
-            // 리스폰 후 관전으로 전환(바로 바꾸면 일부 서버에서 꼬일 수 있어 1틱 딜레이)
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (dead.isOnline()) dead.setGameMode(GameMode.SPECTATOR);
             }, 1L);
@@ -970,12 +978,10 @@ public class GameManager implements Listener {
 
         updateScoreboardAll();
 
-        // 쇼다운 조건(12분 이후 + 2명 이하)
         if (phase == Phase.RUNNING && showdownEnabled && getAlivePlayers().size() <= 2) {
             Bukkit.getScheduler().runTask(plugin, this::startShowdown);
         }
 
-        // 우승 체크
         Bukkit.getScheduler().runTask(plugin, this::checkWinner);
     }
 
@@ -988,4 +994,3 @@ public class GameManager implements Listener {
         if (isRunning()) Bukkit.getScheduler().runTask(plugin, this::checkWinner);
     }
 }
-//70 -140, -200 45

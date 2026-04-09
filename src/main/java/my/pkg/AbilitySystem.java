@@ -3,47 +3,54 @@ package my.pkg;
 import java.util.*;
 
 import my.pkg.abilities.Ability;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.player.*;
-import org.bukkit.inventory.ItemFlag;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.NamespacedKey;
+import org.bukkit.event.player.*;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.GameMode;
-import org.bukkit.Material;
-import org.bukkit.inventory.ItemStack;
-import java.util.Map;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.NamespacedKey;
 
 public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.command.TabCompleter {
     private final JavaPlugin plugin;
-    // 능력 등록소: id -> 능력 구현체
     private final Map<String, Ability> registry = new HashMap<>();
-    // 플레이어별 상태(능력/쿨타임) 저장
     private final Map<UUID, PlayerState> states = new HashMap<>();
 
     private final GameManager gameManager;
-
     private final NamespacedKey trackerCompassKey;
+    private final NamespacedKey rerollKey;
 
     private AbilityPickManager abilityPickManager;
+    private BukkitTask trackerTask;
+
+    private static final int NORMAL_LAPIS_COUNT = 16;
+    private static final int NORMAL_XP_AMOUNT = 300;
+
+    private static final int MINI_LAPIS_COUNT = 8;
+    private static final int MINI_XP_AMOUNT = 120;
+
+    public AbilitySystem(JavaPlugin plugin, GameManager gameManager) {
+        this.plugin = plugin;
+        this.gameManager = gameManager;
+        this.rerollKey = new NamespacedKey(plugin, "reroll_ticket");
+        this.trackerCompassKey = new NamespacedKey(plugin, "tracker_compass");
+    }
 
     public void setAbilityPickManager(AbilityPickManager abilityPickManager) {
         this.abilityPickManager = abilityPickManager;
@@ -53,19 +60,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         return Collections.unmodifiableCollection(registry.values());
     }
 
-    private BukkitTask trackerTask;
-    private final NamespacedKey rerollKey;
-
-    private static final int LAPIS_COUNT = 16; // n값
-    private static final int XP_AMOUNT = 300;   // n값 (레벨 아님, exp 포인트)
-
-    public AbilitySystem(JavaPlugin plugin, GameManager gameManager) {
-        this.plugin = plugin;
-        this.gameManager = gameManager;
-        this.rerollKey = new NamespacedKey(plugin, "reroll_ticket");
-        this.trackerCompassKey = new NamespacedKey(plugin, "tracker_compass");
-
-    }
     public JavaPlugin getPlugin() {
         return plugin;
     }
@@ -79,9 +73,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
     }
 
     public Ability getAbility(String id) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         return registry.get(id.toLowerCase());
     }
 
@@ -95,9 +87,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             return Collections.emptyList();
         }
 
-        List<String> result = new ArrayList<>();
-
-        // /ability <subcommand>
         if (args.length == 1) {
             List<String> subs = Arrays.asList(
                     "me",
@@ -105,13 +94,13 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     "reroll",
                     "rerollall",
                     "start",
+                    "startmini",
                     "startpick",
                     "rerollitem"
             );
             return partialMatch(args[0], subs);
         }
 
-        // /ability give <player> <abilityId>
         if (args[0].equalsIgnoreCase("give")) {
             if (args.length == 2) {
                 List<String> names = new ArrayList<>();
@@ -126,7 +115,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             }
         }
 
-        // /ability reroll <player>
         if (args[0].equalsIgnoreCase("reroll")) {
             if (args.length == 2) {
                 List<String> names = new ArrayList<>();
@@ -137,7 +125,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             }
         }
 
-        // /ability rerollitem <amount>
         if (args[0].equalsIgnoreCase("rerollitem")) {
             if (args.length == 2) {
                 return partialMatch(args[1], Arrays.asList("1", "2", "3", "5", "10"));
@@ -168,16 +155,16 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             state.cooldownTask = null;
         }
         player.sendActionBar("");
+
         if (state.ability != null) {
-            // 기존 능력 회수 훅 호출
             state.ability.onRemove(this, player);
         }
+
         state.ability = ability;
-        // 쿨타임 초기화
         state.nextUsableAtMs = 0;
+
         if (ability != null) {
             ability.onGrant(this, player);
-
         }
     }
 
@@ -210,8 +197,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         for (Player p : from.getWorld().getPlayers()) {
             if (p.equals(from)) continue;
             if (!p.isOnline() || p.isDead()) continue;
-
-            // ✅ 관전자 제외
             if (p.getGameMode() == GameMode.SPECTATOR) continue;
 
             double d = p.getLocation().distanceSquared(from.getLocation());
@@ -238,11 +223,10 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     p.setCompassTarget(nearest.getLocation());
                 }
             }
-        }, 0L, 10L); // 10틱(0.5초)마다 갱신
+        }, 0L, 10L);
     }
 
     private void startCooldownActionBar(Player player, PlayerState state, Ability ability) {
-        // 기존 표시 작업 있으면 제거
         if (state.cooldownTask != null) {
             state.cooldownTask.cancel();
             state.cooldownTask = null;
@@ -259,9 +243,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                 long now = System.currentTimeMillis();
                 long remainingMs = state.nextUsableAtMs - now;
 
-                // 쿨 끝
                 if (remainingMs <= 0) {
-                    // 액션바 지우기(빈 문자열)
                     player.sendActionBar("");
                     state.cooldownTask = null;
                     cancel();
@@ -269,11 +251,9 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                 }
 
                 long sec = (remainingMs + 999) / 1000;
-
-                // 원하는 문구로 수정 가능
                 player.sendActionBar("§7[§b" + ability.name() + "§7] §f쿨타임 §c" + sec + "s");
             }
-        }.runTaskTimer(plugin, 0L, 10L); // 10틱=0.5초마다 갱신 (부드럽게)
+        }.runTaskTimer(plugin, 0L, 10L);
     }
 
     @EventHandler
@@ -283,7 +263,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         PlayerState state = getState(player);
         if (state.getAbility() == null) return;
 
-        // ✅ 능력에게 넘김 (패시브)
         state.getAbility().onDamage(this, event);
     }
 
@@ -311,7 +290,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         PlayerState state = getState(player);
         if (state.getAbility() == null) return;
 
-        // 블록 단위로 바뀐 경우만 처리 (성능)
         if (event.getFrom().getBlockX() == event.getTo().getBlockX()
                 && event.getFrom().getBlockY() == event.getTo().getBlockY()
                 && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
@@ -341,11 +319,8 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     "§e능력이 랜덤으로 변경됩니다."
             ));
 
-            // 반짝이
             meta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-
-            // ✅ 진짜 리롤권인지 식별용 PDC
             meta.getPersistentDataContainer().set(rerollKey, PersistentDataType.BYTE, (byte) 1);
 
             item.setItemMeta(meta);
@@ -366,11 +341,10 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         if (!cmd.getName().equalsIgnoreCase("ability")) return false;
 
         if (args.length == 0) {
-            sender.sendMessage("Usage: /ability me | /ability give <player> <id> | /ability start");
+            sender.sendMessage("Usage: /ability me | /ability give <player> <id> | /ability start | /ability startmini");
             return true;
         }
 
-        // /ability me
         if (args[0].equalsIgnoreCase("me")) {
             if (!(sender instanceof Player p)) {
                 sender.sendMessage("Players only.");
@@ -385,7 +359,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             return true;
         }
 
-        // /ability give <player> <id>
         if (args[0].equalsIgnoreCase("give")) {
             if (args.length < 3) {
                 sender.sendMessage("Usage: /ability give <player> <abilityId>");
@@ -408,7 +381,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             return true;
         }
 
-        // /ability reroll <player>
         if (args[0].equalsIgnoreCase("reroll")) {
             if (!sender.isOp()) {
                 sender.sendMessage("OP only.");
@@ -467,7 +439,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             for (Player p : plugin.getServer().getOnlinePlayers()) {
                 Ability newAbility = abilities.get(random.nextInt(abilities.size()));
 
-                // 쿨타임 액션바 표시/태스크 정리까지 포함해서 교체
                 PlayerState state = getState(p);
                 if (state.cooldownTask != null) {
                     state.cooldownTask.cancel();
@@ -479,7 +450,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                 p.sendMessage("§e[전체리롤] §f능력이 §a" + newAbility.name() + "§f(으)로 변경!");
             }
 
-            sender.sendMessage("§aRerolled abilities for all online players (no items given).");
+            sender.sendMessage("§aRerolled abilities for all online players.");
             return true;
         }
 
@@ -514,7 +485,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     }
                 }.runTaskTimer(plugin, 0L, 10L);
 
-                giveDefaultStartItems(p, true); // 기존 랜덤 모드니까 리롤권 포함
+                giveDefaultStartItems(p, true);
             }
 
             gameManager.startGame();
@@ -522,7 +493,45 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             return true;
         }
 
-        //직접 능력을 선택할수 있는 모드 ability startpick
+        if (args[0].equalsIgnoreCase("startmini")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
+            if (registry.isEmpty()) {
+                sender.sendMessage("No abilities registered.");
+                return true;
+            }
+
+            List<Ability> abilities = new ArrayList<>(registry.values());
+            Random random = new Random();
+
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                Ability randomAbility = abilities.get(random.nextInt(abilities.size()));
+                grant(p, randomAbility);
+                p.sendMessage("§d[미니 도능] §f" + randomAbility.name() + " 능력이 부여되었습니다!");
+
+                new BukkitRunnable() {
+                    int t = 0;
+                    @Override
+                    public void run() {
+                        if (!p.isOnline() || t > 60) {
+                            cancel();
+                            return;
+                        }
+                        p.sendActionBar("§d미니 도능 능력: §e" + randomAbility.name());
+                        t += 10;
+                    }
+                }.runTaskTimer(plugin, 0L, 10L);
+
+                giveMiniStartItems(p, true);
+            }
+
+            gameManager.startMiniGame();
+            sender.sendMessage("Mini ability game started! Random abilities assigned.");
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("startpick")) {
             if (!sender.isOp()) {
                 sender.sendMessage("OP only.");
@@ -537,7 +546,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             return true;
         }
 
-        //리롤권 부여 ability rerollitem 1
         if (args[0].equalsIgnoreCase("rerollitem")) {
             if (!(sender instanceof Player p)) {
                 sender.sendMessage("Players only.");
@@ -559,6 +567,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             p.sendMessage("§a리롤권 " + amount + "개를 지급했습니다.");
             return true;
         }
+
         return true;
     }
 
@@ -569,14 +578,31 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
 
         p.getInventory().addItem(createTrackerCompass(1));
 
-        giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, LAPIS_COUNT));
+        giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, NORMAL_LAPIS_COUNT));
         giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));
         giveOrDrop(p, new ItemStack(Material.STICK, 1));
         giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 64));
         giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));
         giveOrDrop(p, new ItemStack(Material.BREAD, 128));
 
-        p.giveExp(XP_AMOUNT);
+        p.giveExp(NORMAL_XP_AMOUNT);
+    }
+
+    public void giveMiniStartItems(Player p, boolean giveRerollTicket) {
+        if (giveRerollTicket) {
+            p.getInventory().addItem(createRerollTicket(1));
+        }
+
+        p.getInventory().addItem(createTrackerCompass(1));
+
+        giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, MINI_LAPIS_COUNT));
+        giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 16));
+        giveOrDrop(p, new ItemStack(Material.STICK, 1));
+        giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 32));
+        giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));
+        giveOrDrop(p, new ItemStack(Material.BREAD, 32));
+
+        p.giveExp(MINI_XP_AMOUNT);
     }
 
     private void giveOrDrop(Player p, ItemStack item) {
@@ -587,7 +613,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
     }
 
     public void registerListeners() {
-        // 발동 입력 리스너 등록 (AbilitySystem 자체가 Listener)
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         startTrackerTask();
     }
@@ -602,25 +627,16 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
-
-        // ✅ 메인핸드 이벤트만 처리 (오프핸드 중복 발동 방지)
         if (event.getHand() != EquipmentSlot.HAND) return;
-
-        // 발동 트리거: 네더스타 우클릭
         if (event.getItem() == null) return;
 
         Action action = event.getAction();
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
 
-        // ✅ 리롤권 처리(양손 + 우클릭)
         if (isRerollTicket(item)) {
-            // "양손 들기" 판정: 오프핸드가 비어있지 않으면(=양손에 뭔가 든 상태)
-            ItemStack off = player.getInventory().getItemInOffHand();
-            boolean holdingTwoHands = off != null && off.getType() != Material.AIR;
-
-            // 능력 랜덤 변경
             PlayerState state = getState(player);
 
             if (registry.isEmpty()) {
@@ -628,30 +644,26 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                 return;
             }
 
-            // 기존 능력 제외하고 뽑고 싶으면 여기서 필터 가능
             List<Ability> abilities = new ArrayList<>(registry.values());
             Ability newAbility = abilities.get(new Random().nextInt(abilities.size()));
 
-            // ✅ 1장 소모
             item.setAmount(item.getAmount() - 1);
 
-            // ✅ 쿨타임 표시 제거
             if (state.cooldownTask != null) {
                 state.cooldownTask.cancel();
                 state.cooldownTask = null;
             }
             player.sendActionBar("");
 
-            // ✅ 능력 교체
             grant(player, newAbility);
 
             player.sendMessage("§b[리롤권] §f능력이 §a" + newAbility.name() + "§f(으)로 변경되었습니다!");
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.6f);
 
-            // 네더스타 발동이랑 겹치지 않게 이벤트 종료
             event.setCancelled(true);
             return;
         }
+
         if (event.getItem().getType() != Material.NETHER_STAR) return;
 
         PlayerState state = getState(player);
@@ -663,7 +675,6 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         long now = System.currentTimeMillis();
 
         if (now < state.nextUsableAtMs) {
-            // 이미 쿨표시가 돌고 있을텐데, 혹시 없으면 다시 시작
             startCooldownActionBar(player, state, state.ability);
             return;
         }
@@ -671,19 +682,14 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         boolean activated = state.ability.activate(this, player);
         if (activated) {
             state.nextUsableAtMs = now + state.ability.cooldownSeconds() * 1000L;
-
-            // ✅ 능력 사용 직후부터 액션바로 쿨타임 표시
             startCooldownActionBar(player, state, state.ability);
         }
     }
 
     public static class PlayerState {
         private final UUID playerId;
-        // 현재 보유 능력
         private Ability ability;
-        // 다음 사용 가능 시각(ms)
         private long nextUsableAtMs;
-
         private BukkitTask cooldownTask;
 
         public PlayerState(UUID playerId) {
@@ -703,6 +709,3 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         }
     }
 }
-// /ability give 닉네임 능력
-// /ability start
-// /ability me
