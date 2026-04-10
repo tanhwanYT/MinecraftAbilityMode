@@ -10,8 +10,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -40,7 +38,6 @@ public class BatmanAbility implements Ability, Listener {
     private final NamespacedKey fireballSpeedKey;
     private final NamespacedKey fireballHitCountKey;
 
-    // 플레이어당 현재 살아있는 야구공 1개만 유지하고 싶으면 사용
     private final Map<UUID, UUID> activeBall = new ConcurrentHashMap<>();
 
     public BatmanAbility(JavaPlugin plugin) {
@@ -58,7 +55,7 @@ public class BatmanAbility implements Ability, Listener {
 
     @Override
     public String name() {
-        return "배트맨";
+        return "4번타자";
     }
 
     @Override
@@ -69,7 +66,7 @@ public class BatmanAbility implements Ability, Listener {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         giveBat(player);
-        player.sendMessage("배트맨 : 밀치기 2 배트를 받습니다. 능력 사용시 야구공(화염구)를 소환해 날립니다.");
+        player.sendMessage("4번타자 : 밀치기 2 배트를 받습니다. 능력 사용시 야구공(화염구)를 소환합니다.");
     }
 
     @Override
@@ -77,7 +74,6 @@ public class BatmanAbility implements Ability, Listener {
         if (!(event.getDamager() instanceof Player attacker)) return;
         if (!(event.getEntity() instanceof Player || event.getEntity() instanceof org.bukkit.entity.LivingEntity)) return;
 
-        // 배트로 때릴 때 타격감만 추가
         if (!isBatmanBat(attacker.getInventory().getItemInMainHand())) return;
 
         attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.25f);
@@ -85,12 +81,11 @@ public class BatmanAbility implements Ability, Listener {
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
-        // 이미 자기 공이 살아있으면 중복 소환 막기
         UUID existingId = activeBall.get(player.getUniqueId());
         if (existingId != null) {
             Entity existing = Bukkit.getEntity(existingId);
             if (existing instanceof Fireball fb && !fb.isDead() && fb.isValid()) {
-                player.sendMessage("§c[배트맨] 이미 야구공이 존재합니다!");
+                player.sendMessage("§c[4번타자] 이미 야구공이 존재합니다!");
                 return false;
             }
         }
@@ -100,8 +95,11 @@ public class BatmanAbility implements Ability, Listener {
 
         Fireball ball = player.getWorld().spawn(eye.add(dir.clone().multiply(1.2)), Fireball.class, fb -> {
             fb.setShooter(player);
-            fb.setDirection(dir);
-            fb.setVelocity(dir.multiply(INITIAL_FIREBALL_SPEED));
+
+            // 처음엔 날아가지 않게 정지 상태로 소환
+            fb.setDirection(new Vector(0, 0, 0));
+            fb.setVelocity(new Vector(0, 0, 0));
+
             fb.setYield(FIREBALL_YIELD);
             fb.setIsIncendiary(false);
             fb.setVisualFire(false);
@@ -120,16 +118,12 @@ public class BatmanAbility implements Ability, Listener {
         return true;
     }
 
-    // ===== 화염구를 배트로 쳤을 때 =====
     @EventHandler
     public void onHitFireball(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player hitter)) return;
         if (!(event.getEntity() instanceof Fireball ball)) return;
 
-        // 우리가 만든 야구공만 처리
         if (!ball.getPersistentDataContainer().has(fireballOwnerKey, PersistentDataType.STRING)) return;
-
-        // 배트로 친 경우만 인정
         if (!isBatmanBat(hitter.getInventory().getItemInMainHand())) return;
 
         event.setCancelled(true);
@@ -157,12 +151,9 @@ public class BatmanAbility implements Ability, Listener {
         w.spawnParticle(Particle.SWEEP_ATTACK, hitter.getLocation().add(0, 1.0, 0), 1, 0, 0, 0, 0);
         w.spawnParticle(Particle.FLAME, ball.getLocation(), 10, 0.15, 0.15, 0.15, 0.01);
 
-        hitter.sendActionBar("§6[배트맨] §e야구공 속도 Lv." + (hitCount + 1));
+        hitter.sendActionBar("§6[4번타자] §e야구공 속도 Lv." + (hitCount + 1));
     }
 
-    // ===== 배트가 버려지지 않게 막기 =====
-    // 네 AbilitySystem에 궁수 활처럼 아이템 드롭 방지 로직이 이미 있으면
-    // 이 키값만 체크해서 같이 막아주면 됨.
     private boolean isBatmanBat(ItemStack item) {
         if (item == null) return false;
 
@@ -170,13 +161,11 @@ public class BatmanAbility implements Ability, Listener {
         if (meta == null) return false;
 
         NamespacedKey batKey = new NamespacedKey(plugin, "batman_bat");
-
         Byte v = meta.getPersistentDataContainer().get(batKey, PersistentDataType.BYTE);
         return v != null && v == (byte) 1;
     }
 
     private void giveBat(Player player) {
-        // 이미 있으면 중복 지급 안 함
         for (ItemStack item : player.getInventory().getContents()) {
             if (isBatmanBat(item)) return;
         }
@@ -210,7 +199,6 @@ public class BatmanAbility implements Ability, Listener {
         ItemStack current = event.getCurrentItem();
         ItemStack cursor = event.getCursor();
 
-        // Q, Ctrl+Q로 버리기
         if (event.getClick() == ClickType.DROP || event.getClick() == ClickType.CONTROL_DROP) {
             if (isBatmanBat(current)) {
                 event.setCancelled(true);
@@ -221,7 +209,6 @@ public class BatmanAbility implements Ability, Listener {
             }
         }
 
-        // 슬롯 밖으로 던지는 경우
         if (event.getSlot() == -999) {
             if (isBatmanBat(cursor) || isBatmanBat(current)) {
                 event.setCancelled(true);
@@ -257,5 +244,4 @@ public class BatmanAbility implements Ability, Listener {
             }
         }
     }
-
 }

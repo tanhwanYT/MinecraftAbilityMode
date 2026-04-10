@@ -414,7 +414,7 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("reporter", "기자", "원하는 플레이어 능력 전체공개, 대상은 발광과 스턴에 걸림", Material.SPYGLASS));
         putAbility(new AbilityInfo("backattacker", "백어택커", "뒤를 공격하면 추가 피해. 능력 사용 시 바라보는 방향으로 도약", Material.GOLDEN_SWORD));
         putAbility(new AbilityInfo("bangbang", "방방", "공중에 있을 때 피해를 받지 않음. 최대 체력은 8칸", Material.SLIME_BLOCK));
-        putAbility(new AbilityInfo("batman", "배트맨", "밀치기 2 배트를 받음. 네더의 별 우클릭 시 야구공(화염구) 발사", Material.STICK));
+        putAbility(new AbilityInfo("batman", "4번타자", "밀치기 2 배트를 받음. 네더의 별 우클릭 시 야구공(화염구) 소환", Material.STICK));
     }
 
     private void registerRewardInfos() {

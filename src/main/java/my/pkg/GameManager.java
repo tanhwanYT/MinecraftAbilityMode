@@ -166,8 +166,8 @@ public class GameManager implements Listener {
         borderCenter = new Location(w, -34.0, w.getHighestBlockYAt(-34, 25), 25.0);
 
         // 필요하면 여기 쇼다운 좌표는 나중에 더 다듬어도 됨
-        showdownLocA = new Location(w, -34.0, 64, 15.5, 180f, 0f);
-        showdownLocB = new Location(w, -34.0, 64, 35.5, 0f, 0f);
+        showdownLocA = new Location(w, -34.0, 4, 15.5, 180f, 0f);
+        showdownLocB = new Location(w, -34.0, 4, 35.5, 0f, 0f);
 
         randomSpawnMinX = -95.0;
         randomSpawnMaxX = 23.0;
