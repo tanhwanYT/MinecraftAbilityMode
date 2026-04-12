@@ -128,6 +128,16 @@ public class SetAbility implements Ability {
 
         player.setAbsorptionAmount(absorption);
 
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead()) return;
+
+                // 현재 흡수체력 제거
+                player.setAbsorptionAmount(0);
+            }
+        }.runTaskLater(plugin, 20L * 5);
+
         // 시전 시작 위치 + 시야 고정
         final Location lock = player.getLocation().clone();
         final float lockedYaw = lock.getYaw();

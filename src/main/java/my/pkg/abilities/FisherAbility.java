@@ -7,6 +7,7 @@ import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerFishEvent;
@@ -78,17 +79,19 @@ public class FisherAbility implements Ability {
     @Override
     public void onAttack(AbilitySystem system, EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player attacker)) return;
+        if (!(event.getEntity() instanceof LivingEntity target)) return;
 
         ItemStack hand = attacker.getInventory().getItemInMainHand();
         if (!isFisherFish(hand)) return;
 
-        // 물고기로 때리면 고정 피해 2칸
-        event.setDamage(FISH_HIT_DAMAGE);
+        event.setCancelled(true);
+
+        double newHealth = Math.max(0.0, target.getHealth() - FISH_HIT_DAMAGE);
+        target.setHealth(newHealth);
 
         attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_COD_FLOP, 0.8f, 1.0f);
         attacker.sendActionBar("§b[피셔] §f물고기 타격! 고정 피해 2칸");
 
-        // ✅ 1회성 소비
         consumeOneFromMainHand(attacker);
     }
 

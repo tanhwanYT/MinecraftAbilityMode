@@ -26,7 +26,7 @@ public class TrapItem implements SupplyItem {
     // 설정
 // 설정
     private static final int PLACE_RANGE = 6;
-    private static final long DURATION_MS = 60_000;
+    private static final long DURATION_MS = 300_000;
 
     // ✅ 발동 범위: 함정 중심으로 반경 4칸 안에 들어오면 발동
     private static final int TRIGGER_RADIUS = 4;
@@ -53,7 +53,7 @@ public class TrapItem implements SupplyItem {
         ItemMeta meta = it.getItemMeta();
         meta.setDisplayName("§c함정 설치 키트");
         meta.setLore(List.of(
-                "§7우클릭: 보이지 않는 함정 설치",
+                "§7우클릭: 보이지 않는 함정 설치 (지속시간 5분)",
                 "§7상대가 밟으면 땅이 파입니다"
         ));
         meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id());

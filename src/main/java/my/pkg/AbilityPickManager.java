@@ -414,12 +414,12 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("reporter", "기자", "원하는 플레이어 능력 전체공개, 대상은 발광과 스턴에 걸림", Material.SPYGLASS));
         putAbility(new AbilityInfo("backattacker", "백어택커", "뒤를 공격하면 추가 피해. 능력 사용 시 바라보는 방향으로 도약", Material.GOLDEN_SWORD));
         putAbility(new AbilityInfo("bangbang", "방방", "공중에 있을 때 피해를 받지 않음. 최대 체력은 8칸", Material.SLIME_BLOCK));
-        putAbility(new AbilityInfo("batman", "4번타자", "밀치기 2 배트를 받음. 네더의 별 우클릭 시 야구공(화염구) 소환", Material.STICK));
+        putAbility(new AbilityInfo("batman", "4번타자", "밀치기 2 배트를 받음. 네더의 별 우클릭 시 야구공(화염구) 소환, 야구공을 직접 타격시 더 빠르게 날아감", Material.STICK));
     }
 
     private void registerRewardInfos() {
         putReward(new RewardInfo("bridge_egg", "브릿지 에그", "달걀을 던지면 궤적에 양털 다리가 생성되고 20초 뒤 사라집니다.", Material.EGG));
-        putReward(new RewardInfo("diamond_helmet", "다이아 투구", "보호 1 다이아몬드 투구를 지급받습니다.", Material.DIAMOND_HELMET));
+        putReward(new RewardInfo("prot_helmet", "다이아 투구", "보호 1 다이아몬드 투구를 지급받습니다.", Material.DIAMOND_HELMET));
         putReward(new RewardInfo("trap", "트랩", "보이지 않는 함정을 설치합니다. 상대가 밟으면 피해와 함께 땅이 꺼집니다.", Material.TRIPWIRE_HOOK));
         putReward(new RewardInfo("midas's_hand", "미다스의 손", "때린 상대의 방어구 중 하나를 철에서 금으로 바꿉니다.", Material.GOLD_INGOT));
         putReward(new RewardInfo("gambler_diamond", "도박꾼의 다이아", "30% 확률로 상대 즉사, 70% 확률로 본인 즉사", Material.DIAMOND));

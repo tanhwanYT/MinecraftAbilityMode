@@ -216,7 +216,6 @@ public class ReporterAbility implements Ability, Listener {
 
         target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, EXPOSE_TICKS, 0, false, true, true));
         target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, EXPOSE_TICKS, 10, false, true, true));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, EXPOSE_TICKS, 250, false, true, true));
 
         reporter.playSound(reporter.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 1.2f);
         target.playSound(target.getLocation(), Sound.ENTITY_ILLUSIONER_PREPARE_MIRROR, 0.9f, 0.8f);

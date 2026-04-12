@@ -66,7 +66,7 @@ public class BatmanAbility implements Ability, Listener {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         giveBat(player);
-        player.sendMessage("4번타자 : 밀치기 2 배트를 받습니다. 능력 사용시 야구공(화염구)를 소환합니다.");
+        player.sendMessage("4번타자 : 밀치기 2 배트를 받습니다. 능력 사용시 야구공(화염구)를 소환합니다. 야구공을 직접 떄릴시 더 빠르게 날아갑니다.");
     }
 
     @Override

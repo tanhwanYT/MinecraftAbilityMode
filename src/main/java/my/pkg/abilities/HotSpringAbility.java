@@ -98,6 +98,7 @@ public class HotSpringAbility implements Ability, Listener {
                 Player owner = Bukkit.getPlayer(holderId);
                 if (owner == null || !owner.isOnline() || owner.isDead()) continue;
                 if (!owner.isValid()) continue;
+                if (owner.getGameMode() != org.bukkit.GameMode.SURVIVAL) continue;
 
                 Block ownerWater = getStandingWaterBlock(owner);
                 if (ownerWater == null) continue;
@@ -108,11 +109,11 @@ public class HotSpringAbility implements Ability, Listener {
                     if (target.equals(owner)) continue;
                     if (!target.isOnline() || target.isDead()) continue;
                     if (!target.isValid()) continue;
+                    if (target.getGameMode() != org.bukkit.GameMode.SURVIVAL) continue;
 
                     Block targetWater = getStandingWaterBlock(target);
                     if (targetWater == null) continue;
 
-                    // 같은 연결된 물인지 판정
                     if (!isSameConnectedWater(ownerWater, targetWater, SEARCH_LIMIT, MAX_BLOCK_DISTANCE)) {
                         continue;
                     }
@@ -142,8 +143,8 @@ public class HotSpringAbility implements Ability, Listener {
     private void applyHotWaterEffect(Player owner, Player target) {
         World world = owner.getWorld();
 
-        owner.damage(OWNER_DAMAGE);
-        target.damage(TARGET_DAMAGE, owner);
+        damageNoKnockback(owner, OWNER_DAMAGE);
+        damageNoKnockback(target, TARGET_DAMAGE);
 
         owner.setFireTicks(0);
         target.setFireTicks(0);
@@ -159,6 +160,22 @@ public class HotSpringAbility implements Ability, Listener {
 
         owner.sendActionBar("§6[온탕] §f같은 물 안의 상대와 함께 뜨거운 물 피해!");
         target.sendActionBar("§c[온탕] §f물이 뜨겁다!");
+    }
+
+    private void damageNoKnockback(Player player, double damage) {
+        double remain = damage;
+
+        double absorption = player.getAbsorptionAmount();
+        if (absorption > 0) {
+            double used = Math.min(absorption, remain);
+            player.setAbsorptionAmount(absorption - used);
+            remain -= used;
+        }
+
+        if (remain <= 0) return;
+
+        double newHealth = Math.max(0.0, player.getHealth() - remain);
+        player.setHealth(newHealth);
     }
 
     // 플레이어가 서 있는 위치/발 아래 쪽에서 물 판정
