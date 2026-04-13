@@ -1,30 +1,44 @@
 package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.NamespacedKey;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeModifier;
-import org.bukkit.potion.PotionEffectType;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.scheduler.BukkitTask;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class GamblerAbility implements Ability {
+public class GamblerAbility implements Ability, org.bukkit.event.Listener {
 
-    private NamespacedKey hpKey;
-    private static final double BONUS_HP = 4.0;
+    private static final int START_SURVIVAL_CHANCE = 100;
+    private static final int SURVIVAL_DECREASE_PER_HIT = 1;
+    private static final int MIN_SURVIVAL_CHANCE = 0;
+
+    private static boolean listenerRegistered = false;
+
+    private final Map<UUID, Integer> survivalChance = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> actionbarTasks = new ConcurrentHashMap<>();
 
     @Override
-    public String id() { return "gambler"; }
+    public String id() {
+        return "gambler";
+    }
 
     @Override
-    public String name() { return "도박꾼"; }
+    public String name() {
+        return "도박꾼";
+    }
 
     @Override
-    public int cooldownSeconds() { return 0; } // 패시브라 의미 없음
+    public int cooldownSeconds() {
+        return 0;
+    }
 
     @Override
     public boolean activate(AbilitySystem system, Player player) {
@@ -33,17 +47,25 @@ public class GamblerAbility implements Ability {
     }
 
     @Override
-    public void onRemove(AbilitySystem system, Player player) {
-        removeHpBonus(player);
+    public void onGrant(AbilitySystem system, Player player) {
+        resetSurvivalChance(player);
+        startActionbar(system, player);
+
+        player.sendMessage("§d도박꾼 §f: 맨손 공격 시 무조건 3~7의 랜덤 고정 피해를 줍니다.");
+        player.sendMessage("§7대신 공격할 때마다 생존 확률이 줄어듭니다.");
+        player.sendMessage("§7생존 확률 판정에 실패하면 즉사합니다.");
+
+        if (!listenerRegistered) {
+            system.getPlugin().getServer().getPluginManager().registerEvents(this, system.getPlugin());
+            listenerRegistered = true;
+        }
     }
 
     @Override
-    public void onGrant(AbilitySystem system, Player player) {
-        // 사용법 안내
-        player.sendMessage("도박꾼 : '맨손' 공격 시 70% 확률로 상대에게 3~7의 랜덤 고정피해를 입힙니다.");
-        player.sendMessage("하지만 30% 확률로 본인에게 대미지가 들어갈수있습니다.");
-        if (hpKey == null) hpKey = new NamespacedKey(system.getPlugin(), "gambler_hp_bonus");
-        applyHpBonus(player);
+    public void onRemove(AbilitySystem system, Player player) {
+        resetSurvivalChance(player);
+        stopActionbar(player);
+        player.sendActionBar("");
     }
 
     @Override
@@ -51,63 +73,95 @@ public class GamblerAbility implements Ability {
         if (!(event.getDamager() instanceof Player attacker)) return;
         if (!(event.getEntity() instanceof LivingEntity target)) return;
 
-        // 맨손만
         if (attacker.getInventory().getItemInMainHand().getType() != Material.AIR) return;
 
-        int dmg = ThreadLocalRandom.current().nextInt(3, 7); // 3~7
-        boolean backfire = ThreadLocalRandom.current().nextBoolean();
+        UUID uuid = attacker.getUniqueId();
+        int currentChance = survivalChance.getOrDefault(uuid, START_SURVIVAL_CHANCE);
 
-        if (backfire) {
-            // ✅ 이번 공격은 "빗나감" 처리: 대상 피해 0으로
-            event.setDamage(0.0);
+        int dmg = ThreadLocalRandom.current().nextInt(1, 6); // 1~5
 
-            // ✅ 대신 본인이 피해를 받음 (다음 틱에 주는 게 안전)
-            system.getPlugin().getServer().getScheduler().runTask(system.getPlugin(), () -> {
-                if (attacker.isOnline() && !attacker.isDead()) {
-                    attacker.damage(dmg);
-                }
+        int roll = ThreadLocalRandom.current().nextInt(1, 101);
+        boolean survived = roll <= currentChance;
+
+        // 기본 타격 판정/넉백은 살리고 실제 피해만 0으로
+        event.setDamage(0.0);
+
+        if (!survived) {
+            Bukkit.getScheduler().runTask(system.getPlugin(), () -> {
+                if (!attacker.isOnline() || attacker.isDead()) return;
+
+                Bukkit.broadcastMessage(
+                        "§d[도박꾼] §f" + attacker.getName()
+                                + "님이 생존 확률 §c" + currentChance + "%§f에서 터졌습니다. ㅋㅋ"
+                );
+
+                attacker.setHealth(0.0);
             });
 
-            attacker.sendMessage("§c[도박꾼] 꽝! 내가 " + dmg + " 피해를 받았다!");
-        } else {
-            // ✅ 공격은 정상 처리되게 두고, 데미지만 고정값으로 덮어쓰기
-            event.setDamage((double) dmg);
-            attacker.sendMessage("§a[도박꾼] 적중! 상대에게 " + dmg + " 피해!");
+            attacker.sendMessage("§c[도박꾼] 생존 실패! 확률이 당신을 버렸습니다!");
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(system.getPlugin(), () -> {
+            if (!target.isValid() || target.isDead()) return;
+            applyFixedDamage(attacker, target, dmg);
+        });
+
+        int nextChance = Math.max(MIN_SURVIVAL_CHANCE, currentChance - SURVIVAL_DECREASE_PER_HIT);
+        survivalChance.put(uuid, nextChance);
+
+        attacker.sendMessage("§a[도박꾼] 적중! 상대에게 " + dmg + " 고정 피해! §7(생존 확률: " + nextChance + "%)");
+    }
+
+    @org.bukkit.event.EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (!survivalChance.containsKey(player.getUniqueId())) return;
+        resetSurvivalChance(player);
+    }
+
+    private void applyFixedDamage(Player attacker, LivingEntity target, double damage) {
+        double remain = damage;
+
+        // 흡수체력 먼저 제거
+        double absorption = target.getAbsorptionAmount();
+        if (absorption > 0) {
+            double used = Math.min(absorption, remain);
+            target.setAbsorptionAmount(absorption - used);
+            remain -= used;
+        }
+
+        if (remain <= 0) return;
+
+        double newHealth = Math.max(0.0, target.getHealth() - remain);
+        target.setHealth(newHealth);
+
+        if (target instanceof Player playerTarget) {
+            playerTarget.sendMessage("§c[도박꾼] " + attacker.getName() + "에게 고정 피해 " + (int) damage + "를 받았습니다!");
         }
     }
-    private void applyHpBonus(Player p) {
-        if (hpKey == null) return;
 
-        var attr = p.getAttribute(Attribute.MAX_HEALTH);
-        if (attr == null) return;
+    private void startActionbar(AbilitySystem system, Player player) {
+        stopActionbar(player);
 
-        // 기존 모디파이어 제거(중복 방지)
-        attr.getModifiers().stream()
-                .filter(m -> hpKey.equals(m.getKey()))
-                .forEach(attr::removeModifier);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(system.getPlugin(), () -> {
+            if (!player.isOnline()) return;
 
-        attr.addModifier(new AttributeModifier(
-                hpKey,
-                BONUS_HP,
-                AttributeModifier.Operation.ADD_NUMBER
-        ));
+            int chance = survivalChance.getOrDefault(player.getUniqueId(), START_SURVIVAL_CHANCE);
+            player.sendActionBar("§7[§d도박꾼§7] §f생존 확률 §a" + chance + "%");
+        }, 0L, 10L);
 
-        // 현재 체력이 최대체력보다 크면 보정
-        double max = p.getMaxHealth();
-        if (p.getHealth() > max) p.setHealth(max);
+        actionbarTasks.put(player.getUniqueId(), task);
     }
 
-    private void removeHpBonus(Player p) {
-        if (hpKey == null) return;
+    private void stopActionbar(Player player) {
+        BukkitTask old = actionbarTasks.remove(player.getUniqueId());
+        if (old != null) {
+            old.cancel();
+        }
+    }
 
-        var attr = p.getAttribute(Attribute.MAX_HEALTH);
-        if (attr == null) return;
-
-        attr.getModifiers().stream()
-                .filter(m -> hpKey.equals(m.getKey()))
-                .forEach(attr::removeModifier);
-
-        double max = p.getMaxHealth();
-        if (p.getHealth() > max) p.setHealth(max);
+    private void resetSurvivalChance(Player player) {
+        survivalChance.put(player.getUniqueId(), START_SURVIVAL_CHANCE);
     }
 }

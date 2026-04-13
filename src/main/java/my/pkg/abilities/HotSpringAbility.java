@@ -2,6 +2,7 @@ package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -22,12 +23,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HotSpringAbility implements Ability, Listener {
 
     // ===== 밸런스 조절용 =====
-    private static final int CHECK_PERIOD_TICKS = 20;      // 몇 틱마다 검사할지 (20 = 1초)
+    private static final int CHECK_PERIOD_TICKS = 20;      // 1초마다 검사
     private static final double OWNER_DAMAGE = 4.0;        // 능력자가 받는 피해
-    private static final double TARGET_DAMAGE = 7.0;       // 상대가 받는 피해
-    private static final int DAMAGE_COOLDOWN_TICKS = 20;   // 같은 상대에게 재적용 간격
-    private static final int SEARCH_LIMIT = 500;           // 연결된 물 탐색 최대 블록 수
-    private static final int MAX_BLOCK_DISTANCE = 24;      // 너무 먼 물줄기까지 검사 안 하게 제한
+    private static final double TARGET_MIN_DAMAGE = 3.0;   // 가장 멀 때 최소 피해
+    private static final double TARGET_MAX_DAMAGE = 8.0;   // 가장 가까울 때 최대 피해
+    private static final double DAMAGE_FALLOFF_DISTANCE = 12.0; // 이 거리부터는 최소 피해
+    private static final int DAMAGE_COOLDOWN_TICKS = 20;
+    private static final int SEARCH_LIMIT = 500;
+    private static final int MAX_BLOCK_DISTANCE = 24;
 
     // ===== 상태 저장 =====
     private static final Set<UUID> holders = ConcurrentHashMap.newKeySet();
@@ -57,7 +60,7 @@ public class HotSpringAbility implements Ability, Listener {
 
         player.sendMessage("§6온탕 §f: 같은 물줄기에 들어온 상대와 함께 뜨거운 물 피해를 입힙니다.");
         player.sendMessage("§7- 이어진 물도 같은 물로 판정됩니다.");
-        player.sendMessage("§7- 나는 덜 아프고, 상대는 더 아픕니다.");
+        player.sendMessage("§7- 가까울수록 더 뜨겁고, 멀수록 덜 아픕니다.");
 
         if (!listenerRegistered) {
             system.getPlugin().getServer().getPluginManager().registerEvents(this, system.getPlugin());
@@ -98,7 +101,7 @@ public class HotSpringAbility implements Ability, Listener {
                 Player owner = Bukkit.getPlayer(holderId);
                 if (owner == null || !owner.isOnline() || owner.isDead()) continue;
                 if (!owner.isValid()) continue;
-                if (owner.getGameMode() != org.bukkit.GameMode.SURVIVAL) continue;
+                if (owner.getGameMode() != GameMode.SURVIVAL) continue;
 
                 Block ownerWater = getStandingWaterBlock(owner);
                 if (ownerWater == null) continue;
@@ -109,7 +112,7 @@ public class HotSpringAbility implements Ability, Listener {
                     if (target.equals(owner)) continue;
                     if (!target.isOnline() || target.isDead()) continue;
                     if (!target.isValid()) continue;
-                    if (target.getGameMode() != org.bukkit.GameMode.SURVIVAL) continue;
+                    if (target.getGameMode() != GameMode.SURVIVAL) continue;
 
                     Block targetWater = getStandingWaterBlock(target);
                     if (targetWater == null) continue;
@@ -143,8 +146,10 @@ public class HotSpringAbility implements Ability, Listener {
     private void applyHotWaterEffect(Player owner, Player target) {
         World world = owner.getWorld();
 
+        double targetDamage = calculateTargetDamage(owner, target);
+
         damageNoKnockback(owner, OWNER_DAMAGE);
-        damageNoKnockback(target, TARGET_DAMAGE);
+        damageNoKnockback(target, targetDamage);
 
         owner.setFireTicks(0);
         target.setFireTicks(0);
@@ -159,7 +164,22 @@ public class HotSpringAbility implements Ability, Listener {
         world.spawnParticle(Particle.BUBBLE, target.getLocation().add(0, 0.6, 0), 10, 0.25, 0.2, 0.25, 0.01);
 
         owner.sendActionBar("§6[온탕] §f같은 물 안의 상대와 함께 뜨거운 물 피해!");
-        target.sendActionBar("§c[온탕] §f물이 뜨겁다!");
+        target.sendActionBar("§c[온탕] §f물이 뜨겁다! §7(피해: " + String.format("%.1f", targetDamage) + ")");
+    }
+
+    private double calculateTargetDamage(Player owner, Player target) {
+        if (!owner.getWorld().equals(target.getWorld())) {
+            return TARGET_MIN_DAMAGE;
+        }
+
+        double distance = owner.getLocation().distance(target.getLocation());
+
+        if (distance >= DAMAGE_FALLOFF_DISTANCE) {
+            return TARGET_MIN_DAMAGE;
+        }
+
+        double ratio = 1.0 - (distance / DAMAGE_FALLOFF_DISTANCE);
+        return TARGET_MIN_DAMAGE + (TARGET_MAX_DAMAGE - TARGET_MIN_DAMAGE) * ratio;
     }
 
     private void damageNoKnockback(Player player, double damage) {
@@ -178,7 +198,6 @@ public class HotSpringAbility implements Ability, Listener {
         player.setHealth(newHealth);
     }
 
-    // 플레이어가 서 있는 위치/발 아래 쪽에서 물 판정
     private Block getStandingWaterBlock(Player player) {
         Block feet = player.getLocation().getBlock();
         if (isWaterBlock(feet)) return feet;

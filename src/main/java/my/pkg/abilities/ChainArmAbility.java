@@ -26,10 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ChainArmAbility implements Ability, Listener {
     private static final double RANGE = 14.0;
-    private static final int CHAIN_TRAVEL_TICKS = 8;   // 사슬 날아가는 연출 시간
-    private static final int FAIL_ROOT_TICKS = 20;     // 실패 시 1초 구속
+    private static final int CHAIN_TRAVEL_TICKS = 6;   // 사슬 날아가는 연출 시간
     private static final int HIT_FREEZE_TICKS = 14;    // 성공 시 시전자 고정 시간
-    private static final int PULL_TICKS = 10;          // 끌어오는 시간
+    private static final int PULL_TICKS = 8;          // 끌어오는 시간
 
     private static boolean listenerRegistered = false;
 
@@ -56,9 +55,8 @@ public class ChainArmAbility implements Ability, Listener {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         player.sendMessage("§7사슬팔 : 바라보는 방향으로 사슬을 발사합니다.");
-        player.sendMessage("§7- 적중 시 대상을 내 앞으로 끌어옵니다.");
+        player.sendMessage("§7- 적중 시 대상을 내 앞으로 끌어옵니다. 벽에 적중시 벽으로 이동합니다.");
         player.sendMessage("§7- 사용 중에는 위치와 시야가 고정됩니다.");
-        player.sendMessage("§7- 실패하면 잠깐 구속됩니다.");
 
         if (!listenerRegistered) {
             system.getPlugin().getServer().getPluginManager().registerEvents(this, system.getPlugin());
@@ -122,8 +120,9 @@ public class ChainArmAbility implements Ability, Listener {
         boolean hitEntityFirst = hitTarget != null && entityDist <= blockDist;
         boolean hitBlockFirst = hitBlock != null && blockDist < entityDist;
 
-        int freezeTicks = (hitEntityFirst || hitBlockFirst) ? HIT_FREEZE_TICKS : FAIL_ROOT_TICKS;
-        freezePlayer(system, player, freezeTicks);
+        if (hitEntityFirst || hitBlockFirst) {
+            freezePlayer(system, player, HIT_FREEZE_TICKS);
+        }
 
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f, 1.4f);
 
@@ -268,7 +267,7 @@ public class ChainArmAbility implements Ability, Listener {
 
     private void onFail(Player player) {
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 1.0f, 0.9f);
-        player.sendMessage("§c[사슬팔] 그랩에 실패하여 잠시 구속됩니다.");
+        player.sendMessage("§7[사슬팔] 그랩이 빗나갔습니다.");
     }
 
     private void freezePlayer(AbilitySystem system, Player player, int ticks) {

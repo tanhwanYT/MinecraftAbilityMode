@@ -111,6 +111,20 @@ public class BatmanAbility implements Ability, Listener {
 
         activeBall.put(player.getUniqueId(), ball.getUniqueId());
 
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (ball.isValid() && !ball.isDead()) {
+                ball.remove();
+            }
+
+            // activeBall 정리
+            UUID ownerId = player.getUniqueId();
+            UUID stored = activeBall.get(ownerId);
+            if (stored != null && stored.equals(ball.getUniqueId())) {
+                activeBall.remove(ownerId);
+            }
+
+        }, 20L * 10);
+
         World w = player.getWorld();
         w.playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 1.2f);
         w.spawnParticle(Particle.SMOKE, ball.getLocation(), 12, 0.15, 0.15, 0.15, 0.02);

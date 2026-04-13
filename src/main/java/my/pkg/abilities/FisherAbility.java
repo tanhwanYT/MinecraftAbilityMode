@@ -84,15 +84,34 @@ public class FisherAbility implements Ability {
         ItemStack hand = attacker.getInventory().getItemInMainHand();
         if (!isFisherFish(hand)) return;
 
-        event.setCancelled(true);
+        // 넉백은 살리고 기본 피해만 제거
+        event.setDamage(0.0);
 
-        double newHealth = Math.max(0.0, target.getHealth() - FISH_HIT_DAMAGE);
-        target.setHealth(newHealth);
+        Bukkit.getScheduler().runTask(system.getPlugin(), () -> {
+            if (!target.isValid() || target.isDead()) return;
+            applyFixedDamage(target, FISH_HIT_DAMAGE);
+        });
 
         attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_COD_FLOP, 0.8f, 1.0f);
         attacker.sendActionBar("§b[피셔] §f물고기 타격! 고정 피해 2칸");
 
         consumeOneFromMainHand(attacker);
+    }
+
+    private void applyFixedDamage(LivingEntity target, double damage) {
+        double remain = damage;
+
+        double absorption = target.getAbsorptionAmount();
+        if (absorption > 0) {
+            double used = Math.min(absorption, remain);
+            target.setAbsorptionAmount(absorption - used);
+            remain -= used;
+        }
+
+        if (remain <= 0) return;
+
+        double newHealth = Math.max(0.0, target.getHealth() - remain);
+        target.setHealth(newHealth);
     }
 
     @Override
