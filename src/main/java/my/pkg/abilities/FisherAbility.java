@@ -1,30 +1,33 @@
 package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import java.util.UUID;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.Bukkit;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class FisherAbility implements Ability {
+public class FisherAbility implements Ability, Listener {
 
     private final NamespacedKey rodKey;
     private final NamespacedKey fishKey;
@@ -34,6 +37,7 @@ public class FisherAbility implements Ability {
     private static final double HEAL_AMOUNT = 4.0; // 2칸 회복
 
     private static final Map<UUID, Integer> trashCount = new ConcurrentHashMap<>();
+    private static boolean listenerRegistered = false;
 
     public FisherAbility(NamespacedKey rodKey, NamespacedKey fishKey) {
         this.rodKey = rodKey;
@@ -61,6 +65,11 @@ public class FisherAbility implements Ability {
         player.sendMessage("피셔의 물고기 : 물고기로 때리면 고정 피해 2칸, 먹으면 체력을 회복합니다.");
 
         giveFishingRod(player);
+
+        if (!listenerRegistered) {
+            system.getPlugin().getServer().getPluginManager().registerEvents(this, system.getPlugin());
+            listenerRegistered = true;
+        }
     }
 
     @Override
@@ -85,7 +94,7 @@ public class FisherAbility implements Ability {
         if (!isFisherFish(hand)) return;
 
         // 넉백은 살리고 기본 피해만 제거
-        event.setDamage(0.0);
+        event.setDamage(0.01);
 
         Bukkit.getScheduler().runTask(system.getPlugin(), () -> {
             if (!target.isValid() || target.isDead()) return;
@@ -118,11 +127,9 @@ public class FisherAbility implements Ability {
     public void onFish(AbilitySystem system, PlayerFishEvent event) {
         Player player = event.getPlayer();
 
-        // 전용 낚싯대가 아니면 무시
         ItemStack rod = player.getInventory().getItemInMainHand();
         if (!isFisherRod(rod)) return;
 
-        // 낚시 성공 상태만
         if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
 
         if (ThreadLocalRandom.current().nextDouble() < FISH_CHANCE) {
@@ -138,11 +145,9 @@ public class FisherAbility implements Ability {
             trashCount.put(player.getUniqueId(), count);
 
             player.sendMessage("§6[피셔] §f낚시에 실패했습니다... §7똥을 건졌습니다. (§e" + count + "개)");
-
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.7f, 0.9f);
 
             if (count % 5 == 0) {
-
                 Bukkit.broadcastMessage(
                         "§6§l[피셔] §e" + player.getName() +
                                 "§f님이 똥을 §c" + count +
@@ -173,6 +178,34 @@ public class FisherAbility implements Ability {
 
         player.sendMessage("§b[피셔] §f물고기를 먹고 체력을 회복했습니다!");
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 0.8f, 1.0f);
+    }
+
+    @EventHandler
+    public void onDrop(PlayerDropItemEvent event) {
+        ItemStack item = event.getItemDrop().getItemStack();
+
+        if (isFisherRod(item) || isFisherFish(item)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[피셔] 전용 아이템은 버릴 수 없습니다.");
+        }
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        ItemStack current = event.getCurrentItem();
+        ItemStack cursor = event.getCursor();
+
+        if (isFisherRod(current) || isFisherFish(current)
+                || isFisherRod(cursor) || isFisherFish(cursor)) {
+
+            if (event.isShiftClick() || event.getClick().isKeyboardClick()) {
+                event.setCancelled(true);
+            }
+
+            if (event.getSlot() == -999) {
+                event.setCancelled(true);
+            }
+        }
     }
 
     private void giveFishingRod(Player player) {
@@ -214,7 +247,6 @@ public class FisherAbility implements Ability {
     }
 
     private void removeFisherItems(Player player) {
-
         for (int i = 0; i < player.getInventory().getSize(); i++) {
             ItemStack item = player.getInventory().getItem(i);
 
@@ -233,8 +265,11 @@ public class FisherAbility implements Ability {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§b피셔의 낚싯대");
-            meta.setLore(List.of("§7농심 레드포스의 미드 라이너로,",
-                    " 2025 LCK컵 4등에 준수한 도움을 준 피셔선수를 기리는 낚싯대"));
+            meta.setLore(List.of(
+                    "§7버릴 수 없는 전용 낚싯대",
+                    "§7농심 레드포스의 미드 라이너로,",
+                    " 2025 LCK컵 4등에 준수한 도움을 준 피셔선수를 기리는 낚싯대"
+            ));
             meta.getPersistentDataContainer().set(rodKey, PersistentDataType.BYTE, (byte) 1);
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             item.setItemMeta(meta);
@@ -248,6 +283,7 @@ public class FisherAbility implements Ability {
         if (meta != null) {
             meta.setDisplayName("§b팔딱팔딱 신선한 물고기");
             meta.setLore(List.of(
+                    "§7버릴 수 없는 전용 물고기",
                     "§7때리면 고정 피해 2칸",
                     "§7먹으면 체력 회복",
                     "§7참고로 1회성 아이템임"

@@ -8,6 +8,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
@@ -43,11 +45,14 @@ public class ParlemoAbility implements Ability {
     // 최근 교전 상대: (내 UUID) -> (상대 UUID -> 마지막 교전 시각)
     private final Map<UUID, Map<UUID, Long>> recentEnemies = new ConcurrentHashMap<>();
 
+    Map<UUID, Boolean> firstHitMap = new ConcurrentHashMap<>();
+
     private final JavaPlugin plugin;
 
     public ParlemoAbility(JavaPlugin plugin) {
         this.plugin = plugin;
         startDecayTask();
+        startActionbarTask();
     }
 
     @Override public String id() { return "palermo"; }
@@ -66,6 +71,7 @@ public class ParlemoAbility implements Ability {
         stacks.remove(id);
         lastCombatAt.remove(id);
         recentEnemies.remove(id);
+        player.removePotionEffect(PotionEffectType.SPEED);
     }
 
     @Override
@@ -87,9 +93,18 @@ public class ParlemoAbility implements Ability {
 
         int enemyCount = getEnemyCount(myId);
         if (enemyCount == 1) {
-            // 듀얼: 스택 증가
             if (isOnlyEnemy(myId, enemyId)) {
-                addStack(myId, STACK_GAIN_ON_HIT);
+
+                boolean firstHit = !firstHitMap.getOrDefault(myId, false);
+
+                if (firstHit) {
+                    addStack(myId, 3); // 첫타 보너스
+                    firstHitMap.put(myId, true);
+                    me.sendActionBar("§d[팔레르모] §f첫 타격! 스택 +3");
+                } else {
+                    addStack(myId, STACK_GAIN_ON_HIT);
+                }
+
                 showStack(me);
             }
         } else {
@@ -179,6 +194,25 @@ public class ParlemoAbility implements Ability {
         cleanupEnemies(myId, now);
     }
 
+    private void startActionbarTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    UUID id = p.getUniqueId();
+
+                    if (!stacks.containsKey(id)) continue;
+                    if (!p.isOnline() || p.isDead()) continue;
+
+                    int stack = stacks.getOrDefault(id, 0);
+
+                    applySpeedBuff(p, stack);
+                    showStack(p);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 10L); // 0.5초마다
+    }
+
     private void cleanupEnemies(UUID myId, long now) {
         Map<UUID, Long> m = recentEnemies.get(myId);
         if (m == null) return;
@@ -202,6 +236,26 @@ public class ParlemoAbility implements Ability {
         int cur = stacks.getOrDefault(id, 0);
         int next = Math.max(0, Math.min(STACK_MAX, cur + delta));
         stacks.put(id, next);
+
+        Player p = Bukkit.getPlayer(id);
+        if (p != null && p.isOnline()) {
+            applySpeedBuff(p, next);
+        }
+    }
+
+    private void applySpeedBuff(Player p, int stack) {
+        if (stack >= 15) {
+            p.addPotionEffect(new PotionEffect(
+                    PotionEffectType.SPEED,
+                    40, // 2초
+                    0,  // 신속 I
+                    false,
+                    false,
+                    true
+            ));
+        } else {
+            p.removePotionEffect(PotionEffectType.SPEED);
+        }
     }
 
     private void showStack(Player p) {
@@ -244,6 +298,9 @@ public class ParlemoAbility implements Ability {
                     addStack(id, -STACK_DECAY_OUT_COMBAT);
                     // 너무 스팸이면 주석
                     // showStack(p);
+                    if (now - last >= OUT_COMBAT_MS) {
+                        firstHitMap.remove(id);
+                    }
                 }
             }
         }.runTaskTimer(plugin, 20L, 20L); // 1초마다
