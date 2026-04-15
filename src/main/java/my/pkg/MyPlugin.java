@@ -69,6 +69,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new ArcherAbility(new NamespacedKey(this, "archer_bow"), new NamespacedKey(this, "archer_arrow"), new NamespacedKey(this, "archer_potion_arrow")));
         abilitySystem.register(new BackAttackerAbility(this));
         abilitySystem.register(new BangBangAbility());
+        abilitySystem.register(new BlazeAbility(this));
 
         BatmanAbility batmanAbility = new BatmanAbility(this);
         getServer().getPluginManager().registerEvents(batmanAbility, this);
