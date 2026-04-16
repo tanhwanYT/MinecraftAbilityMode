@@ -70,6 +70,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new BackAttackerAbility(this));
         abilitySystem.register(new BangBangAbility());
         abilitySystem.register(new BlazeAbility(this));
+        abilitySystem.register(new AhabAbility(this, abilitySystem));
 
         BatmanAbility batmanAbility = new BatmanAbility(this);
         getServer().getPluginManager().registerEvents(batmanAbility, this);
