@@ -588,6 +588,22 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         p.giveExp(NORMAL_XP_AMOUNT);
     }
 
+    public Ability getRegisteredAbility(String key) {
+        if (key == null) return null;
+        return registry.get(key.toLowerCase());
+    }
+
+    public String getAbilityKey(Ability target) {
+        if (target == null) return null;
+
+        for (Map.Entry<String, Ability> entry : registry.entrySet()) {
+            if (entry.getValue() == target) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
     public void giveMiniStartItems(Player p, boolean giveRerollTicket) {
         if (giveRerollTicket) {
             p.getInventory().addItem(createRerollTicket(1));
