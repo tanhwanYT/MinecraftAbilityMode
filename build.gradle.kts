@@ -1,4 +1,7 @@
-plugins { java }
+plugins {
+    java
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
+}
 
 repositories {
     mavenCentral()
@@ -6,15 +9,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
 }
 
 java {
-    toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
-}
-
-tasks.register<Copy>("buildAndCopy") {
-    dependsOn(tasks.jar)
-    from(layout.buildDirectory.dir("libs"))
-    into("D:/MCserver/plugins") // 네 서버 plugins 경로
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
