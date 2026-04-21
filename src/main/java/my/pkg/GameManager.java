@@ -93,7 +93,7 @@ public class GameManager implements Listener {
     private static final double[] NORMAL_BORDER_SIZES = {600, 420, 300, 200, 140, 90, 60, 40};
 
     // ===== 미니 모드 기본값 =====
-    private static final int MINI_PREP_SEC = 60;
+    private static final int MINI_PREP_SEC = 90;
     private static final int MINI_SHRINK_INTERVAL_SEC = 90;
     private static final int MINI_SHOWDOWN_AFTER_SEC = 180;
     private static final double[] MINI_BORDER_SIZES = {150, 100, 70, 40, 25};

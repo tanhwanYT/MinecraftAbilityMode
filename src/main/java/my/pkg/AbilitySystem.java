@@ -612,7 +612,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         p.getInventory().addItem(createTrackerCompass(1));
 
         giveOrDrop(p, new ItemStack(Material.LAPIS_LAZULI, MINI_LAPIS_COUNT));
-        giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 16));
+        giveOrDrop(p, new ItemStack(Material.IRON_INGOT, 29));
         giveOrDrop(p, new ItemStack(Material.STICK, 1));
         giveOrDrop(p, new ItemStack(Material.WHITE_WOOL, 32));
         giveOrDrop(p, new ItemStack(Material.NETHER_STAR, 1));

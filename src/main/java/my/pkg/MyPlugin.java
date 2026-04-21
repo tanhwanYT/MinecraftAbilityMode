@@ -73,6 +73,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new AhabAbility(this, abilitySystem));
         abilitySystem.register(new WildCardAbility());
         abilitySystem.register(new DoppelgangerAbility());
+        abilitySystem.register(new DaystarAbility());
 
         BatmanAbility batmanAbility = new BatmanAbility(this);
         getServer().getPluginManager().registerEvents(batmanAbility, this);
