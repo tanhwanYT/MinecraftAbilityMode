@@ -1,10 +1,7 @@
 package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
@@ -15,8 +12,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDropItemEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
@@ -36,6 +33,9 @@ public class GuillotineAbility implements Ability, Listener {
     private static final double RANGE = 18.0;
     private static final int DROP_HEIGHT = 10;
     private static final long ANVIL_LIFETIME_TICKS = 60L; // 3초 후 사라짐
+
+    private BukkitTask previewTask;
+    private static final long PREVIEW_PERIOD = 2L;
 
     private static boolean listenerRegistered = false;
 
@@ -79,6 +79,7 @@ public class GuillotineAbility implements Ability, Listener {
             system.getPlugin().getServer().getPluginManager().registerEvents(this, system.getPlugin());
             listenerRegistered = true;
         }
+        startPreviewTask();
     }
 
     @Override
@@ -113,6 +114,50 @@ public class GuillotineAbility implements Ability, Listener {
         }
 
         return true;
+    }
+
+    private void startPreviewTask() {
+        if (previewTask != null) return;
+
+        previewTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                if (!player.isOnline() || player.isDead()) continue;
+                if (!holders.contains(player.getUniqueId())) continue;
+
+                ItemStack main = player.getInventory().getItemInMainHand();
+                if (main == null || main.getType() != Material.NETHER_STAR) continue;
+
+                Location center = getTargetCenter(player);
+                if (center == null) continue;
+
+                World world = player.getWorld();
+                int cx = center.getBlockX();
+                int cz = center.getBlockZ();
+                double y = center.getBlockY() + 0.1;
+
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        Location loc = new Location(world, cx + dx + 0.5, y, cz + dz + 0.5);
+
+                        // 플레이어 본인에게만 프리뷰 파티클 표시
+                        player.spawnParticle(
+                                Particle.DUST,
+                                loc,
+                                1,
+                                0.0, 0.0, 0.0, 0.0,
+                                new Particle.DustOptions(Color.fromRGB(80, 80, 80), 1.2f)
+                        );
+
+                        player.spawnParticle(
+                                Particle.CRIT,
+                                loc.clone().add(0, 0.15, 0),
+                                1,
+                                0.0, 0.0, 0.0, 0.0
+                        );
+                    }
+                }
+            }
+        }, 0L, PREVIEW_PERIOD);
     }
 
     private Location getTargetCenter(Player player) {
@@ -266,6 +311,11 @@ public class GuillotineAbility implements Ability, Listener {
     public void onRemove(AbilitySystem system, Player player) {
         holders.remove(player.getUniqueId());
         clearOwnedAnvils(player.getUniqueId());
+
+        if (holders.isEmpty() && previewTask != null) {
+            previewTask.cancel();
+            previewTask = null;
+        }
     }
 
     private static class BlockPos {
