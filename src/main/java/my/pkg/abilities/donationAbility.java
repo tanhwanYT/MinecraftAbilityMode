@@ -27,10 +27,13 @@ public class donationAbility implements Ability, Listener {
     // ====== 상태 저장 (타겟 UUID -> 상태) ======
     private static final Map<UUID, DonateState> stunned = new ConcurrentHashMap<>();
 
+    private static final Map<UUID, Integer> stacks = new ConcurrentHashMap<>();
+
     private static class DonateState {
         final UUID casterId;
         int shiftCount;
         final long expireAt; // ms
+        int requiredShift;
 
         DonateState(UUID casterId, int durationSeconds) {
             this.casterId = casterId;
@@ -85,13 +88,24 @@ public class donationAbility implements Ability, Listener {
             return false;
         }
 
-        // 스턴 적용
-        stunned.put(target.getUniqueId(), new DonateState(caster.getUniqueId(), STUN_SECONDS));
+        UUID tid = target.getUniqueId();
 
-        // 방송 후원 타이틀
+        // 누적 횟수 증가
+        int count = stacks.getOrDefault(tid, 0) + 1;
+        stacks.put(tid, count);
+
+        // 쉬프트 요구 횟수 증가 (10 + 스택*10)
+        int requiredShift = REQUIRED_SHIFT + (count - 1) * 10;
+
+        // 상태 생성
+        DonateState state = new DonateState(caster.getUniqueId(), STUN_SECONDS);
+        state.requiredShift = requiredShift;
+
+        stunned.put(tid, state);
+
         target.sendTitle(
-                "§d💰 " + caster.getName() + "님이 1000원 후원!",
-                "§f쉬프트를 §d" + REQUIRED_SHIFT + "번§f 눌러 해제!",
+                "§d" + caster.getName() + "님이 1000원 후원!",
+                "§f쉬프트를 §d" + requiredShift + "번§f 눌러 해제!",
                 10, 60, 10
         );
 
@@ -154,10 +168,10 @@ public class donationAbility implements Ability, Listener {
 
         state.shiftCount++;
 
-        int left = Math.max(0, REQUIRED_SHIFT - state.shiftCount);
+        int left = Math.max(0, state.requiredShift - state.shiftCount);
         p.sendMessage("§d[도네이션] §f쉬프트 " + state.shiftCount + "/" + REQUIRED_SHIFT + " §7(남은: " + left + ")");
 
-        if (state.shiftCount >= REQUIRED_SHIFT) {
+        if (state.shiftCount >= state.requiredShift) {
             stunned.remove(p.getUniqueId());
             p.sendTitle("§a해방!", "§7후원이 끝났습니다", 5, 25, 5);
             p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.1f);

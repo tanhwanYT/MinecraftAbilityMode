@@ -34,7 +34,7 @@ public class RapidCrossbowAbility implements Ability, Listener {
     // 현재 액티브 사용 중인 플레이어
     private final Set<UUID> activeUsers = new HashSet<>();
 
-    private static final int COOLDOWN = 5;
+    private static final int COOLDOWN = 45;
     private static final long ACTIVE_TICKS = 20L * 8L; // 8초
 
     public RapidCrossbowAbility(JavaPlugin plugin) {
