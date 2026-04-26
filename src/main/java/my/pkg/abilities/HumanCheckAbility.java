@@ -1,17 +1,21 @@
 package my.pkg.abilities;
 
 import my.pkg.AbilitySystem;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -22,9 +26,13 @@ import java.util.concurrent.ThreadLocalRandom;
 public class HumanCheckAbility implements Ability, Listener {
 
     private final JavaPlugin plugin;
+    private final NamespacedKey actionKey;
+    private final NamespacedKey valueKey;
+    private final NamespacedKey sessionKey;
 
     private static final int COOLDOWN = 35;
-    private static final int RANGE = 12;
+    private static final int RANGE = 15;
+    private static final int NEED_ROBOT_QUESTIONS = 5;
 
     private int nextSessionId = 1;
 
@@ -33,6 +41,9 @@ public class HumanCheckAbility implements Ability, Listener {
 
     public HumanCheckAbility(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.actionKey = new NamespacedKey(plugin, "human_check_action");
+        this.valueKey = new NamespacedKey(plugin, "human_check_value");
+        this.sessionKey = new NamespacedKey(plugin, "human_check_session");
     }
 
     @Override
@@ -88,17 +99,17 @@ public class HumanCheckAbility implements Ability, Listener {
         AuthDuel duel = new AuthDuel(sessionId, caster.getUniqueId(), target.getUniqueId());
         duels.put(sessionId, duel);
 
-        PlayerAuthState casterState = new PlayerAuthState(sessionId, caster.getUniqueId());
-        PlayerAuthState targetState = new PlayerAuthState(sessionId, target.getUniqueId());
+        PlayerAuthState casterState = new PlayerAuthState(sessionId, caster.getUniqueId(), caster.getLocation().clone());
+        PlayerAuthState targetState = new PlayerAuthState(sessionId, target.getUniqueId(), target.getLocation().clone());
 
         states.put(caster.getUniqueId(), casterState);
         states.put(target.getUniqueId(), targetState);
 
+        applyAuthProtection(caster);
+        applyAuthProtection(target);
+
         caster.sendTitle("§b본인인증 시작", "§f상대보다 먼저 통과하세요", 5, 40, 10);
         target.sendTitle("§b본인인증 시작", "§f상대보다 먼저 통과하세요", 5, 40, 10);
-
-        caster.playSound(caster.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.4f);
-        target.playSound(target.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.4f);
 
         sendCodeStep(caster, casterState);
         sendCodeStep(target, targetState);
@@ -111,161 +122,139 @@ public class HumanCheckAbility implements Ability, Listener {
         state.code = randomCode();
         state.input = "";
 
-        player.sendMessage("");
-        player.sendMessage("§b§l[본인인증]");
-        player.sendMessage("§f인증코드를 입력하세요.");
-        player.sendMessage("§7인증코드: §e§l" + state.code);
-        player.sendMessage("§7현재 입력: §f" + displayInput(state.input));
-        sendKeypad(player, state);
+        openCodeGui(player, state);
     }
 
-    private void sendKeypad(Player player, PlayerAuthState state) {
-        player.sendMessage(makeButtonLine(state.sessionId, "1", "2", "3"));
-        player.sendMessage(makeButtonLine(state.sessionId, "4", "5", "6"));
-        player.sendMessage(makeButtonLine(state.sessionId, "7", "8", "9"));
+    private void openCodeGui(Player player, PlayerAuthState state) {
+        Inventory inv = Bukkit.createInventory(null, 27, "§b본인인증 §7- 코드 입력");
 
-        Component zero = digitButton(state.sessionId, "0");
-        Component clear = Component.text(" §c[지우기] ")
-                .clickEvent(ClickEvent.runCommand("/auth_clear " + state.sessionId));
-        Component submit = Component.text(" §a[확인] ")
-                .clickEvent(ClickEvent.runCommand("/auth_submit " + state.sessionId));
+        inv.setItem(4, makeInfoItem(
+                Material.PAPER,
+                "§e인증코드: §l" + state.code,
+                "§7현재 입력: §f" + displayInput(state.input)
+        ));
 
-        player.sendMessage(Component.text("     ").append(zero).append(clear).append(submit));
-    }
+        inv.setItem(10, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e1", "digit", "1", state.sessionId));
+        inv.setItem(11, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e2", "digit", "2", state.sessionId));
+        inv.setItem(12, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e3", "digit", "3", state.sessionId));
 
-    private Component makeButtonLine(int sessionId, String a, String b, String c) {
-        return Component.text("")
-                .append(digitButton(sessionId, a))
-                .append(Component.text(" "))
-                .append(digitButton(sessionId, b))
-                .append(Component.text(" "))
-                .append(digitButton(sessionId, c));
-    }
+        inv.setItem(13, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e4", "digit", "4", state.sessionId));
+        inv.setItem(14, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e5", "digit", "5", state.sessionId));
+        inv.setItem(15, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e6", "digit", "6", state.sessionId));
 
-    private Component digitButton(int sessionId, String digit) {
-        return Component.text("§f[§e" + digit + "§f]")
-                .clickEvent(ClickEvent.runCommand("/auth_digit " + sessionId + " " + digit));
+        inv.setItem(16, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e7", "digit", "7", state.sessionId));
+        inv.setItem(19, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e8", "digit", "8", state.sessionId));
+        inv.setItem(20, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e9", "digit", "9", state.sessionId));
+        inv.setItem(21, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e0", "digit", "0", state.sessionId));
+
+        inv.setItem(23, makeButton(Material.RED_STAINED_GLASS_PANE, "§c지우기", "clear", "", state.sessionId));
+        inv.setItem(25, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a확인", "submit", "", state.sessionId));
+
+        player.openInventory(inv);
     }
 
     private void sendRobotStep(Player player, PlayerAuthState state) {
         state.stage = Stage.ROBOT;
         state.noCount = 0;
-
-        player.sendMessage("");
-        player.sendMessage("§b§l[본인인증]");
-        player.sendMessage("§f당신은 로봇입니까?");
-        sendYesNo(player, state.sessionId, "§a[예]", "§c[아니오]");
+        sendRobotQuestion(player, state);
     }
 
     private void sendRobotQuestion(Player player, PlayerAuthState state) {
         Question q = QUESTIONS[ThreadLocalRandom.current().nextInt(QUESTIONS.length)];
-
         state.correctAnswerYes = q.answerYes;
-
-        player.sendMessage("");
-        player.sendMessage("§b§l[본인인증]");
-        player.sendMessage(q.text);
-
-        sendYesNo(player, state.sessionId, "§a[예]", "§c[아니오]");
+        openRobotGui(player, state, q.text);
     }
 
-    private static class Question {
-        final String text;
-        final boolean answerYes; // true = "예"가 정답
+    private void openRobotGui(Player player, PlayerAuthState state, String question) {
+        Inventory inv = Bukkit.createInventory(null, 27, "§b본인인증 §7- 로봇 검사");
 
-        Question(String text, boolean answerYes) {
-            this.text = text;
-            this.answerYes = answerYes;
-        }
-    }
+        inv.setItem(4, makeInfoItem(
+                Material.OBSERVER,
+                "§f" + ChatColor.stripColor(question),
+                "§7진행도: §f" + state.noCount + "/" + NEED_ROBOT_QUESTIONS
+        ));
 
-    private static final Question[] QUESTIONS = {
-            new Question("§f당신은 로봇입니까?", false),
-            new Question("§f당신은 인간입니까?", true),
-            new Question("§f이 질문에 '예'를 누르세요.", true),
-            new Question("§f이 질문에 '아니오'를 누르세요.", false),
-            new Question("§f당신은 자동화된 프로그램입니까?", false),
-    };
+        inv.setItem(11, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a예", "yes", "", state.sessionId));
+        inv.setItem(15, makeButton(Material.RED_STAINED_GLASS_PANE, "§c아니오", "no", "", state.sessionId));
 
-    private void sendYesNo(Player player, int sessionId, String yesText, String noText) {
-        Component yes = Component.text(yesText)
-                .clickEvent(ClickEvent.runCommand("/auth_yes " + sessionId));
-        Component no = Component.text(" " + noText)
-                .clickEvent(ClickEvent.runCommand("/auth_no " + sessionId));
-
-        player.sendMessage(yes.append(no));
+        player.openInventory(inv);
     }
 
     @EventHandler
-    public void onAuthCommand(PlayerCommandPreprocessEvent event) {
-        String msg = event.getMessage();
-        if (!msg.startsWith("/auth_")) return;
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        PlayerAuthState state = states.get(player.getUniqueId());
+        if (state == null) return;
 
         event.setCancelled(true);
 
-        Player player = event.getPlayer();
-        String[] args = msg.substring(1).split(" ");
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        if (args.length < 2) return;
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
 
-        String command = args[0];
-        int sessionId;
+        Integer session = meta.getPersistentDataContainer().get(sessionKey, PersistentDataType.INTEGER);
+        String action = meta.getPersistentDataContainer().get(actionKey, PersistentDataType.STRING);
+        String value = meta.getPersistentDataContainer().get(valueKey, PersistentDataType.STRING);
 
-        try {
-            sessionId = Integer.parseInt(args[1]);
-        } catch (NumberFormatException e) {
-            return;
-        }
+        if (session == null || action == null) return;
+        if (session != state.sessionId) return;
 
-        PlayerAuthState state = states.get(player.getUniqueId());
-        if (state == null || state.sessionId != sessionId) {
-            player.sendMessage("§c[본인인증] 유효하지 않은 인증입니다.");
-            return;
-        }
-
-        switch (command) {
-            case "auth_digit" -> {
-                if (args.length < 3) return;
-                handleDigit(player, state, args[2]);
-            }
-            case "auth_clear" -> {
+        switch (action) {
+            case "digit" -> handleDigit(player, state, value);
+            case "clear" -> {
                 state.input = "";
-                player.sendMessage("§7입력을 초기화했습니다.");
-                player.sendMessage("§7현재 입력: §f" + displayInput(state.input));
-                sendKeypad(player, state);
+                openCodeGui(player, state);
             }
-            case "auth_submit" -> handleSubmit(player, state);
-            case "auth_yes" -> handleYes(player, state);
-            case "auth_no" -> handleNo(player, state);
+            case "submit" -> handleSubmit(player, state);
+            case "yes" -> handleYes(player, state);
+            case "no" -> handleNo(player, state);
         }
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        PlayerAuthState state = states.get(player.getUniqueId());
+        if (state == null) return;
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            PlayerAuthState latest = states.get(player.getUniqueId());
+            if (latest == null) return;
+
+            if (latest.stage == Stage.CODE) {
+                openCodeGui(player, latest);
+            } else {
+                sendRobotQuestion(player, latest);
+            }
+        }, 2L);
     }
 
     private void handleDigit(Player player, PlayerAuthState state, String digit) {
         if (state.stage != Stage.CODE) return;
-        if (!digit.matches("[0-9]")) return;
+        if (digit == null || !digit.matches("[0-9]")) return;
 
         if (state.input.length() >= 4) {
-            player.sendMessage("§c이미 4자리를 입력했습니다. 확인 또는 지우기를 누르세요.");
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
             return;
         }
 
         state.input += digit;
-        player.sendMessage("§7현재 입력: §f" + displayInput(state.input));
-
-        if (state.input.length() >= 4) {
-            player.sendMessage("§a[확인] 버튼을 누르세요.");
-        }
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.4f);
+        openCodeGui(player, state);
     }
 
     private void handleSubmit(Player player, PlayerAuthState state) {
         if (state.stage != Stage.CODE) return;
 
         if (state.input.equals(state.code)) {
-            player.sendMessage("§a인증코드 확인 완료.");
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.8f);
             sendRobotStep(player, state);
         } else {
-            player.sendMessage("§c인증번호가 틀렸습니다. 처음부터 다시 진행합니다.");
+            player.sendMessage("§c[본인인증] 인증번호가 틀렸습니다. 처음부터 다시 진행합니다.");
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.7f);
             sendCodeStep(player, state);
         }
@@ -276,12 +265,10 @@ public class HumanCheckAbility implements Ability, Listener {
 
         if (state.correctAnswerYes) {
             state.noCount++;
+            nextOrComplete(player, state);
         } else {
             failAndReset(player, state);
-            return;
         }
-
-        nextOrComplete(player, state);
     }
 
     private void handleNo(Player player, PlayerAuthState state) {
@@ -289,27 +276,56 @@ public class HumanCheckAbility implements Ability, Listener {
 
         if (!state.correctAnswerYes) {
             state.noCount++;
+            nextOrComplete(player, state);
         } else {
             failAndReset(player, state);
-            return;
         }
-
-        nextOrComplete(player, state);
     }
 
     private void nextOrComplete(Player player, PlayerAuthState state) {
-        if (state.noCount >= 4) {
+        if (state.noCount >= NEED_ROBOT_QUESTIONS) {
             complete(player, state);
             return;
         }
 
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.3f);
         sendRobotQuestion(player, state);
     }
 
     private void failAndReset(Player player, PlayerAuthState state) {
-        player.sendMessage("§c틀렸습니다! 처음부터 다시 인증합니다.");
+        player.sendMessage("§c[본인인증] 틀렸습니다! 처음부터 다시 인증합니다.");
         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
         sendCodeStep(player, state);
+    }
+
+    @EventHandler
+    public void onMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        PlayerAuthState state = states.get(player.getUniqueId());
+        if (state == null) return;
+        if (event.getTo() == null) return;
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+
+        boolean moved = from.getX() != to.getX()
+                || from.getY() != to.getY()
+                || from.getZ() != to.getZ();
+
+        if (!moved) return;
+
+        Location locked = state.lockLocation.clone();
+        locked.setYaw(to.getYaw());
+        locked.setPitch(to.getPitch());
+        event.setTo(locked);
+    }
+
+    @EventHandler
+    public void onDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!states.containsKey(player.getUniqueId())) return;
+
+        event.setCancelled(true);
     }
 
     private void complete(Player winner, PlayerAuthState winnerState) {
@@ -325,6 +341,9 @@ public class HumanCheckAbility implements Ability, Listener {
         states.remove(loserId);
         duels.remove(winnerState.sessionId);
 
+        clearAuthProtection(winner);
+        winner.closeInventory();
+
         winner.sendTitle("§a본인인증 성공!", "§f당신은 인간입니다", 5, 40, 10);
         winner.sendMessage("§a[본인인증] §f인증을 먼저 완료했습니다!");
         winner.playSound(winner.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
@@ -334,6 +353,9 @@ public class HumanCheckAbility implements Ability, Listener {
         winner.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 8, 0, false, true));
 
         if (loser != null && loser.isOnline()) {
+            clearAuthProtection(loser);
+            loser.closeInventory();
+
             loser.sendTitle("§c본인인증 실패", "§7상대가 먼저 인증했습니다", 5, 40, 10);
             loser.sendMessage("§c[본인인증] §f인증 경쟁에서 패배했습니다.");
             loser.playSound(loser.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.7f);
@@ -343,8 +365,25 @@ public class HumanCheckAbility implements Ability, Listener {
         }
     }
 
+    private void applyAuthProtection(Player player) {
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.RESISTANCE,
+                20 * 60,
+                4,
+                false,
+                false
+        ));
+    }
+
+    private void clearAuthProtection(Player player) {
+        player.removePotionEffect(PotionEffectType.RESISTANCE);
+    }
+
     private void forceLeave(Player player) {
         PlayerAuthState state = states.remove(player.getUniqueId());
+        clearAuthProtection(player);
+        player.closeInventory();
+
         if (state == null) return;
 
         AuthDuel duel = duels.remove(state.sessionId);
@@ -355,6 +394,8 @@ public class HumanCheckAbility implements Ability, Listener {
 
         Player other = Bukkit.getPlayer(otherId);
         if (other != null && other.isOnline()) {
+            clearAuthProtection(other);
+            other.closeInventory();
             other.sendMessage("§7[본인인증] 상대가 인증을 종료했습니다.");
         }
     }
@@ -362,6 +403,32 @@ public class HumanCheckAbility implements Ability, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         forceLeave(event.getPlayer());
+    }
+
+    private ItemStack makeButton(Material material, String name, String action, String value, int sessionId) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(name);
+        meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, action);
+        meta.getPersistentDataContainer().set(valueKey, PersistentDataType.STRING, value == null ? "" : value);
+        meta.getPersistentDataContainer().set(sessionKey, PersistentDataType.INTEGER, sessionId);
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack makeInfoItem(Material material, String name, String lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.setDisplayName(name);
+        meta.setLore(List.of(lore));
+
+        item.setItemMeta(meta);
+        return item;
     }
 
     private String randomCode() {
@@ -379,23 +446,44 @@ public class HumanCheckAbility implements Ability, Listener {
         return sb.toString();
     }
 
+    private static final Question[] QUESTIONS = {
+            new Question("당신은 로봇입니까?", false),
+            new Question("당신은 인간입니까?", true),
+            new Question("이 질문에 '예'를 누르세요.", true),
+            new Question("이 질문에 '아니오'를 누르세요.", false),
+            new Question("당신은 자동화된 프로그램입니까?", false),
+    };
+
     private enum Stage {
         CODE,
         ROBOT
     }
 
+    private static class Question {
+        final String text;
+        final boolean answerYes;
+
+        Question(String text, boolean answerYes) {
+            this.text = text;
+            this.answerYes = answerYes;
+        }
+    }
+
     private static class PlayerAuthState {
         final int sessionId;
         final UUID playerId;
+        final Location lockLocation;
+
         Stage stage = Stage.CODE;
         String code;
         String input = "";
         int noCount = 0;
         boolean correctAnswerYes;
 
-        PlayerAuthState(int sessionId, UUID playerId) {
+        PlayerAuthState(int sessionId, UUID playerId, Location lockLocation) {
             this.sessionId = sessionId;
             this.playerId = playerId;
+            this.lockLocation = lockLocation;
         }
     }
 
