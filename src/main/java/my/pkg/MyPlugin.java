@@ -78,6 +78,7 @@ public final class MyPlugin extends JavaPlugin {
         abilitySystem.register(new WardenAbility());
         abilitySystem.register(new HumanCheckAbility(this));
         abilitySystem.register(new GolemAbility(this));
+        abilitySystem.register(new SpellbookAbility(this));
 
         BatmanAbility batmanAbility = new BatmanAbility(this);
         getServer().getPluginManager().registerEvents(batmanAbility, this);
