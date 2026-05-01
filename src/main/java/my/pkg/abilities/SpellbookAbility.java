@@ -76,7 +76,7 @@ public class SpellbookAbility implements Ability, Listener {
                 return useFlash(player);
             }
             case GHOST -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * 8, 2, false, true));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * 7, 1, false, true));
                 player.playSound(player.getLocation(), Sound.ENTITY_BREEZE_WIND_BURST, 1f, 1.4f);
                 player.sendMessage("§b[봉풀주] §f유체화를 사용했습니다.");
                 return true;
@@ -84,14 +84,14 @@ public class SpellbookAbility implements Ability, Listener {
             case HEAL -> {
                 double newHealth = Math.min(player.getHealth() + 8.0, player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue());
                 player.setHealth(newHealth);
-                player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 20 * 4, 0, false, true));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 20 * 2, 0, false, true));
                 player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1.2, 0), 12, 0.5, 0.5, 0.5, 0.02);
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.6f);
                 player.sendMessage("§a[봉풀주] §f회복을 사용했습니다.");
                 return true;
             }
             case BARRIER -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 20 * 6, 2, false, true));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 20 * 6, 1, false, true));
                 player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 3, 0, false, true));
                 player.getWorld().spawnParticle(Particle.ENCHANTED_HIT, player.getLocation().add(0, 1, 0), 25, 0.6, 0.8, 0.6, 0.03);
                 player.playSound(player.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1f, 1.2f);
@@ -119,11 +119,17 @@ public class SpellbookAbility implements Ability, Listener {
                     return false;
                 }
 
-                target.setFireTicks(20 * 5);
-                target.damage(3.0, player);
-                target.getWorld().spawnParticle(Particle.FLAME, target.getLocation().add(0, 1, 0), 35, 0.4, 0.6, 0.4, 0.04);
+                // 바라보는 대상에게 화상만 부여
+                target.setFireTicks(20 * 4);
+
+                target.getWorld().spawnParticle(
+                        Particle.FLAME,
+                        target.getLocation().add(0, 1, 0),
+                        45, 0.4, 0.7, 0.4, 0.04
+                );
                 target.playSound(target.getLocation(), Sound.ITEM_FIRECHARGE_USE, 1f, 1.2f);
-                player.sendMessage("§c[봉풀주] §f" + target.getName() + "에게 점화");
+
+                player.sendMessage("§c[봉풀주] §f" + target.getName() + "에게 점화를 사용했습니다.");
                 return true;
             }
             case CLEANSE -> {
@@ -140,10 +146,13 @@ public class SpellbookAbility implements Ability, Listener {
                     return false;
                 }
 
-                target.damage(6.0, player);
+                // 고정 대미지 2칸 = 4.0
+                target.damage(4.0, player);
+
                 target.getWorld().strikeLightningEffect(target.getLocation());
                 target.playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.6f, 1.6f);
-                player.sendMessage("§6[봉풀주] §f" + target.getName() + "에게 강타!");
+
+                player.sendMessage("§6[봉풀주] §f" + target.getName() + "에게 강타를 사용했습니다.");
                 return true;
             }
         }
@@ -182,7 +191,7 @@ public class SpellbookAbility implements Ability, Listener {
 
         if (meta != null) {
             meta.setDisplayName(spell.color + spell.displayName);
-            meta.setLore(List.of("§7클릭해서 이 스펠로 변경합니다."));
+            meta.setLore(spell.lore);
             meta.getPersistentDataContainer().set(spellKey, PersistentDataType.STRING, spell.name());
             item.setItemMeta(meta);
         }
@@ -230,39 +239,38 @@ public class SpellbookAbility implements Ability, Listener {
     }
 
     private boolean useFlash(Player player) {
-        Location eye = player.getEyeLocation();
-        Vector dir = eye.getDirection().normalize();
+        Location start = player.getLocation();
+        Vector dir = player.getEyeLocation().getDirection().normalize();
 
-        Location best = player.getLocation();
-        for (double d = 1.0; d <= 8.0; d += 0.5) {
-            Location check = eye.clone().add(dir.clone().multiply(d));
-            Location feet = check.clone();
-            feet.setY(check.getY());
+        Location best = start.clone();
 
-            if (!isSafe(feet)) {
+        for (double d = 0.5; d <= 8.0; d += 0.5) {
+            Location check = start.clone().add(dir.clone().multiply(d));
+
+            if (!isPassableForPlayer(check)) {
                 break;
             }
 
-            best = feet;
+            best = check;
         }
 
-        if (best.distance(player.getLocation()) < 1.0) {
+        if (best.distance(start) < 1.0) {
             player.sendMessage("§c[봉풀주] 점멸할 공간이 없습니다.");
             return false;
         }
 
-        best.setYaw(player.getLocation().getYaw());
-        best.setPitch(player.getLocation().getPitch());
+        best.setYaw(start.getYaw());
+        best.setPitch(start.getPitch());
 
-        player.getWorld().spawnParticle(Particle.PORTAL, player.getLocation().add(0, 1, 0), 30, 0.3, 0.6, 0.3, 0.1);
+        player.getWorld().spawnParticle(Particle.PORTAL, start.clone().add(0, 1, 0), 30, 0.3, 0.6, 0.3, 0.1);
         player.teleport(best);
         player.getWorld().spawnParticle(Particle.PORTAL, best.clone().add(0, 1, 0), 30, 0.3, 0.6, 0.3, 0.1);
         player.playSound(best, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.4f);
-        player.sendMessage("§d[봉풀주] §f점멸!");
+        player.sendMessage("§d[봉풀주] §f점멸을 사용했습니다.");
         return true;
     }
 
-    private boolean isSafe(Location loc) {
+    private boolean isPassableForPlayer(Location loc) {
         World world = loc.getWorld();
         if (world == null) return false;
 
@@ -270,8 +278,7 @@ public class SpellbookAbility implements Ability, Listener {
         Location head = loc.clone().add(0, 1, 0);
 
         return feet.getBlock().isPassable()
-                && head.getBlock().isPassable()
-                && !loc.clone().subtract(0, 1, 0).getBlock().isPassable();
+                && head.getBlock().isPassable();
     }
 
     private void cleanse(Player player) {
@@ -292,23 +299,82 @@ public class SpellbookAbility implements Ability, Listener {
     }
 
     private enum Spell {
-        FLASH("점멸", "§d", Material.PURPLE_WOOL),
-        GHOST("유체화", "§b", Material.LIGHT_BLUE_WOOL),
-        HEAL("회복", "§a", Material.LIME_WOOL),
-        BARRIER("방어막", "§e", Material.YELLOW_WOOL),
-        EXHAUST("탈진", "§8", Material.GRAY_WOOL),
-        IGNITE("점화", "§c", Material.RED_WOOL),
-        CLEANSE("정화", "§f", Material.WHITE_WOOL),
-        SMITE("강타", "§6", Material.ORANGE_WOOL);
+        FLASH(
+                "점멸",
+                "§d",
+                Material.PURPLE_WOOL,
+                List.of(
+                        "§7바라보는 방향으로 짧게 순간이동합니다.",
+                        "§7벽 안으로는 이동하지 않습니다."
+                )
+        ),
+        GHOST(
+                "유체화",
+                "§b",
+                Material.LIGHT_BLUE_WOOL,
+                List.of(
+                        "§7초 동안 이동속도가 크게 증가합니다."
+                )
+        ),
+        HEAL(
+                "회복",
+                "§a",
+                Material.LIME_WOOL,
+                List.of(
+                        "§7체력을 회복하고 짧은 재생을 얻습니다."
+                )
+        ),
+        BARRIER(
+                "방어막",
+                "§e",
+                Material.YELLOW_WOOL,
+                List.of(
+                        "§7흡수 체력과 짧은 저항을 얻습니다."
+                )
+        ),
+        EXHAUST(
+                "탈진",
+                "§8",
+                Material.GRAY_WOOL,
+                List.of(
+                        "§7바라보는 상대에게 둔화와 나약함을 겁니다."
+                )
+        ),
+        IGNITE(
+                "점화",
+                "§c",
+                Material.RED_WOOL,
+                List.of(
+                        "§7바라보는 상대를 불태웁니다."
+                )
+        ),
+        CLEANSE(
+                "정화",
+                "§f",
+                Material.WHITE_WOOL,
+                List.of(
+                        "§7디버프와 불을 제거합니다."
+                )
+        ),
+        SMITE(
+                "강타",
+                "§6",
+                Material.ORANGE_WOOL,
+                List.of(
+                        "§7바라보는 상대에게 고정 대미지 2칸을 줍니다."
+                )
+        );
 
         final String displayName;
         final String color;
         final Material wool;
+        final List<String> lore;
 
-        Spell(String displayName, String color, Material wool) {
+        Spell(String displayName, String color, Material wool, List<String> lore) {
             this.displayName = displayName;
             this.color = color;
             this.wool = wool;
+            this.lore = lore;
         }
     }
 }
