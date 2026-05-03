@@ -109,9 +109,15 @@ public class ParlemoAbility implements Ability {
             }
         } else {
             // 다대1: 기하급수적 약화 느낌으로 크게 깎음
+            int before = stacks.getOrDefault(myId, 0);
+
             int penalty = MULTI_PENALTY_BASE + (enemyCount - 2) * MULTI_PENALTY_PER_EXTRA;
             addStack(myId, -penalty);
-            me.sendActionBar("§c[팔레르모] §f여럿과 교전 중! 스택 감소 §c-" + penalty);
+
+            int after = stacks.getOrDefault(myId, 0);
+            int realPenalty = before - after;
+
+            me.sendActionBar("§c[팔레르모] §f여럿과 교전 중! 스택 감소 §c-" + realPenalty);
         }
 
         // ✅ 스택 기반 공격력 보정

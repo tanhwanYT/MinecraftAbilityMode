@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AhabAbility implements Ability, Listener {
 
-    private static final int COOLDOWN_SECONDS = 20;
+    private static final int COOLDOWN_SECONDS = 40;
 
     private static final int SUMMON_COUNT = 2;
     private static final double SUMMON_OFFSET = 1.5;

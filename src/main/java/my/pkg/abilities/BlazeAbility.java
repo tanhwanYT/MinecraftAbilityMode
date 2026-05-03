@@ -48,7 +48,7 @@ public class BlazeAbility implements Ability, Listener {
     private static boolean listenerRegistered = false;
     private static boolean loopStarted = false;
 
-    private static final int COOLDOWN_SECONDS = 8;
+    private static final int COOLDOWN_SECONDS = 24;
     private static final double FIREBALL_SPEED = 1.2;
 
     // 비행 제한

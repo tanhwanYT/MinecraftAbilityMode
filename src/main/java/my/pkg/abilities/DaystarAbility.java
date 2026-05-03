@@ -17,7 +17,7 @@ import java.util.*;
 
 public class DaystarAbility implements Ability, Listener {
 
-    private static final int COOLDOWN = 25;
+    private static final int COOLDOWN = 35;
     private static final int DURATION = 20 * 5;
 
     private final Set<UUID> marked = new HashSet<>();

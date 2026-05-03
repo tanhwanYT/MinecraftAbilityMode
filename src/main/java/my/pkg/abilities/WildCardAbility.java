@@ -38,7 +38,6 @@ public class WildCardAbility implements Ability {
 
     @Override
     public int cooldownSeconds() {
-        // 와일드카드 자체 고정 쿨타임
         return 25;
     }
 

@@ -30,7 +30,7 @@ public class HumanCheckAbility implements Ability, Listener {
     private final NamespacedKey valueKey;
     private final NamespacedKey sessionKey;
 
-    private static final int COOLDOWN = 35;
+    private static final int COOLDOWN = 40;
     private static final int RANGE = 15;
     private static final int NEED_ROBOT_QUESTIONS = 5;
 
@@ -48,7 +48,7 @@ public class HumanCheckAbility implements Ability, Listener {
 
     @Override
     public String id() {
-        return "human_check";
+        return "humancheck";
     }
 
     @Override

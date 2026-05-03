@@ -392,11 +392,11 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("antman", "앤트맨", "자신 크기를 15초 동안 랜덤 변경. 커지면 최대체력 증가, 작아지면 최대체력 감소 및 속도 강화", Material.RED_MUSHROOM));
         putAbility(new AbilityInfo("speeding", "속도위반", "5초간 노란 양털 위에서 가속, 다른 플레이어와 부딪히면 밀쳐냄. 종료 후 감속 페널티", Material.LEATHER_BOOTS));
         putAbility(new AbilityInfo("panic", "패닉", "가장 가까운 플레이어와 위치 교체, 대상과 본인에게 혼란/실명/인벤토리 룰렛 디버프", Material.CHORUS_FRUIT));
-        putAbility(new AbilityInfo("sniper", "스나이퍼", "시즈모드 3초 조준 후 강한 탄환 발사(고데미지)", Material.CROSSBOW));
+        putAbility(new AbilityInfo("sniper", "스나이퍼", "시즈모드 3초 조준 후 강한 탄환 발사(고데미지)", Material.END_ROD));
         putAbility(new AbilityInfo("donation", "도네이션", "바라보는 플레이어를 스턴, 대상은 쉬프트 연타로 해제 가능", Material.GOLD_INGOT));
         putAbility(new AbilityInfo("taliyah", "탈리아", "벽을 세우며 돌진 이동, 생성된 벽은 일정 시간 후 복구", Material.SANDSTONE));
         putAbility(new AbilityInfo("joker", "조커", "자신을 죽인 플레이어를 함께 죽이는 미러링 효과", Material.NAME_TAG));
-        putAbility(new AbilityInfo("gambler", "도박꾼", "맨손 공격 시 70% 확률로 상대에게 3~7 랜덤 고정 피해 / 30% 확률로 본인 피해", Material.MAGMA_CREAM));
+        putAbility(new AbilityInfo("gambler", "도박꾼", "맨손 공격시 랜덤 고정 피해. 100%의 생존 확률이 공격할 때마다 1%씩 줄어듬. 생존 판정 실패 시 즉사 ", Material.MAGMA_CREAM));
         putAbility(new AbilityInfo("glow", "라이징스타", "능력 사용 시 3초 뒤 섬광탄과 함께 6초 동안 투명 상태 돌입", Material.NETHER_STAR));
         putAbility(new AbilityInfo("bodyguard", "보디가드", "랜덤 보호대상 지정, 대상 생존 시 최대체력과 이속 버프 / 사망 시 버프 해제", Material.SHIELD));
         putAbility(new AbilityInfo("hitman", "청부업자", "랜덤 청부대상 추적, 직접 처치 시 스택형 버프 획득 및 새 대상 지정", Material.IRON_SWORD));
@@ -408,13 +408,23 @@ public class AbilityPickManager implements Listener {
         putAbility(new AbilityInfo("shadowstep", "섀도우스탭", "바라보는 엔티티의 뒤로 이동. 1초 후 원래 자리로 복귀, 대상은 1초간 위치와 시야 고정", Material.ENDER_PEARL));
         putAbility(new AbilityInfo("chainarm", "사슬팔", "사슬을 날려 적을 끌어오거나 블록에 걸어 이동. 실패 시 페널티", Material.LEAD));
         putAbility(new AbilityInfo("glasscannon", "유리대포", "체력은 줄지만 공격력이 증가. 공격력/체력을 직접 조절 가능", Material.GLASS));
-        putAbility(new AbilityInfo("hotspring", "온탕", "상대와 같은 물에 들어가 있으면 상대가 용암틱 피해를 입음. 자신은 피해 감소", Material.WATER_BUCKET));
+        putAbility(new AbilityInfo("hotspring", "온탕", "상대와 같은 물에 들어가있으면 거리비례의 용암틱 대미지를 입음. 자신은 대미지를 덜 받음", Material.WATER_BUCKET));
         putAbility(new AbilityInfo("guillotine", "단두대", "바라보는 3x3 지역에 모루를 떨어뜨려 공격. 본인은 모루 피해 면역", Material.ANVIL));
         putAbility(new AbilityInfo("archer", "아처", "근접 공격 불가. 전용 활/화살 지급, 능력 사용 및 처치 시 화살 수급", Material.BOW));
         putAbility(new AbilityInfo("reporter", "기자", "원하는 플레이어 능력 전체공개, 대상은 발광과 스턴에 걸림", Material.SPYGLASS));
         putAbility(new AbilityInfo("backattacker", "백어택커", "뒤를 공격하면 추가 피해. 능력 사용 시 바라보는 방향으로 도약", Material.GOLDEN_SWORD));
-        putAbility(new AbilityInfo("bangbang", "방방", "공중에 있을 때 피해를 받지 않음. 최대 체력은 8칸", Material.SLIME_BLOCK));
+        putAbility(new AbilityInfo("bangbang", "방방", "근처에 있는 모든 플레이어와 본인에게 점프강화 부여. 지속시간 동안 공중에 있을시 피해 면역", Material.SLIME_BLOCK));
         putAbility(new AbilityInfo("batman", "4번타자", "밀치기 2 배트를 받음. 네더의 별 우클릭 시 야구공(화염구) 소환, 야구공을 직접 타격시 더 빠르게 날아감", Material.STICK));
+        putAbility(new AbilityInfo("blaze", "블레이즈", "일정 시간 비행하며 화염구를 날림. 물에 취약하고 갑옷 페널티가 있음", Material.BLAZE_ROD));
+        putAbility(new AbilityInfo("ahab", "에이해브", "자신을 공격하지 않는 변명자 2마리 소환. 특정 채팅 대사로 근처 대상에게 피해", Material.VINDICATOR_SPAWN_EGG));
+        putAbility(new AbilityInfo("wildcard", "와일드카드", "랜덤 액티브 능력을 발동. 발동 실패 시 쿨타임을 돌려받음", Material.AMETHYST_SHARD));
+        putAbility(new AbilityInfo("doppelganger", "도플갱어", "분신을 소환해 유인. 본인은 은신하고 분신 조종 가능, 3초 뒤 폭발", Material.PLAYER_HEAD));
+        putAbility(new AbilityInfo("daystar", "데이스타", "상대 발밑에 불을 붙이고 5초 뒤 폭발시킴", Material.FIRE_CHARGE));
+        putAbility(new AbilityInfo("rapidcrossbow", "빠른석궁", "8초 동안 다중발사 석궁을 빠르게 연사. 강한 반동 주의", Material.CROSSBOW));
+        putAbility(new AbilityInfo("warden", "워든", "주변 플레이어에게 어둠을 걸고 강한 워든 파동 발사. 밟는 블록을 스컬크로 감염", Material.SCULK_SHRIEKER));
+        putAbility(new AbilityInfo("humancheck", "본인인증", "상대와 본인인증 대결 시작. 승리 시 버프, 패배 시 디버프", Material.WRITABLE_BOOK));
+        putAbility(new AbilityInfo("golem", "골렘", "타격 시 상대를 공중으로 날림. 최대체력 증가, 공격속도 감소", Material.IRON_BLOCK));
+        putAbility(new AbilityInfo("spellbook", "봉풀주", "점멸, 유체화, 회복, 정화, 방어막, 탈진, 점화, 강타 중 원하는 스펠 사용", Material.ENCHANTED_BOOK));
     }
 
     private void registerRewardInfos() {

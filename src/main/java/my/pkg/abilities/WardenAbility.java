@@ -14,7 +14,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 
 public class WardenAbility implements Ability, Listener {
 
-    private static final int COOLDOWN = 20;
+    private static final int COOLDOWN = 43;
     private static final double RANGE = 12;
     private static final int DELAY_TICKS = 20 * 3;
 

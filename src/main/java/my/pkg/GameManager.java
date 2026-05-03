@@ -53,6 +53,8 @@ public class GameManager implements Listener {
     private final Map<UUID, Integer> lives = new ConcurrentHashMap<>();
     private final Map<UUID, Location> pendingRespawn = new ConcurrentHashMap<>();
     private final Set<UUID> alive = ConcurrentHashMap.newKeySet();
+    // 게임 시작 당시 참가자 목록
+    private final Set<UUID> gameParticipants = ConcurrentHashMap.newKeySet();
 
     private BossBar bossBar;
     private Scoreboard scoreboard;
@@ -196,6 +198,7 @@ public class GameManager implements Listener {
         lives.clear();
         pendingRespawn.clear();
         pendingLateJoinChoice.clear();
+        gameParticipants.clear();
         resetShowdownVoting();
 
         initBossBar();
@@ -203,8 +206,11 @@ public class GameManager implements Listener {
         if (supplyManager != null) supplyManager.start();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID id = p.getUniqueId();
+
+            gameParticipants.add(id);
             setAlivePlayer(p);
-            lives.put(p.getUniqueId(), START_LIVES);
+            lives.put(id, START_LIVES);
         }
 
         initScoreboard();
@@ -397,7 +403,7 @@ public class GameManager implements Listener {
             }
 
             if (phase == Phase.RUNNING && showdownEnabled) {
-                if (getAlivePlayers().size() <= 2) {
+                if (getAliveCountIncludingOffline() <= 2 && getAliveOnlinePlayers().size() >= 2) {
                     startShowdown();
                 }
             }
@@ -415,7 +421,9 @@ public class GameManager implements Listener {
             showdownEnabled = true;
             if (phase == Phase.RUNNING) {
                 Bukkit.broadcastMessage("§6[쇼다운] §f이제부터 2명 이하가 되면 결투장으로 이동합니다!");
-                if (getAlivePlayers().size() <= 2) startShowdown();
+                if (getAliveCountIncludingOffline() <= 2 && getAliveOnlinePlayers().size() >= 2) {
+                    startShowdown();
+                }
             }
         }, showdownAfterSec * 20L);
 
@@ -432,7 +440,17 @@ public class GameManager implements Listener {
     private void startShowdown() {
         if (phase != Phase.RUNNING) return;
 
-        List<Player> left = getAlivePlayers();
+        List<Player> left = getAliveOnlinePlayers();
+
+        if (getAliveCountIncludingOffline() == 1) {
+            UUID winnerId = alive.iterator().next();
+            Player winner = Bukkit.getPlayer(winnerId);
+            if (winner != null && winner.isOnline()) {
+                announceWinner(winner);
+            }
+            return;
+        }
+
         if (left.size() == 1) {
             announceWinner(left.get(0));
             return;
@@ -743,6 +761,49 @@ public class GameManager implements Listener {
             return;
         }
 
+        if (gameParticipants.contains(player.getUniqueId())) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
+
+                UUID id = player.getUniqueId();
+
+                if (scoreboard != null) {
+                    player.setScoreboard(scoreboard);
+                }
+
+                if (bossBar != null) {
+                    bossBar.addPlayer(player);
+                }
+
+                if (alive.contains(id) && lives.getOrDefault(id, 0) > 0) {
+                    player.setGameMode(GameMode.SURVIVAL);
+
+                    if (phase == Phase.PREP) {
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, prepEffectTicks, 4, true, false, true));
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, prepEffectTicks, 0, true, false, true));
+                    }
+
+                    player.sendMessage("§a[게임] 다시 접속했습니다. 기존 목숨과 능력 그대로 복귀합니다!");
+                    player.sendMessage("§e[게임] 남은 목숨: §c" + lives.getOrDefault(id, 0));
+
+                    updateScoreboardAll();
+
+                    if (phase == Phase.RUNNING && showdownEnabled
+                            && getAliveCountIncludingOffline() <= 2
+                            && getAliveOnlinePlayers().size() >= 2) {
+                        startShowdown();
+                    }
+
+                    checkWinner();
+                } else {
+                    setSpectator(player);
+                    player.sendMessage("§7[게임] 이미 탈락한 상태라 관전자로 복귀합니다.");
+                }
+            }, 20L);
+
+            return;
+        }
+
         if (phase == Phase.SHOWDOWN) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
@@ -880,10 +941,18 @@ public class GameManager implements Listener {
     private void checkWinner() {
         if (phase == Phase.IDLE || phase == Phase.ENDED) return;
 
-        List<Player> left = getAlivePlayers();
-        if (left.size() == 1) {
-            announceWinner(left.get(0));
-        } else if (left.size() == 0) {
+        int aliveCount = getAliveCountIncludingOffline();
+
+        if (aliveCount == 1) {
+            UUID winnerId = alive.iterator().next();
+            Player winner = Bukkit.getPlayer(winnerId);
+
+            if (winner != null && winner.isOnline()) {
+                announceWinner(winner);
+            } else {
+                Bukkit.broadcastMessage("§e[게임] 마지막 생존자가 오프라인 상태입니다. 다시 접속하면 우승 처리됩니다.");
+            }
+        } else if (aliveCount == 0) {
             endGameNoWinner();
         }
     }
@@ -918,7 +987,7 @@ public class GameManager implements Listener {
         if (showdownGate != null) { showdownGate.cancel(); showdownGate = null; }
     }
 
-    private List<Player> getAlivePlayers() {
+    private List<Player> getAliveOnlinePlayers() {
         List<Player> list = new ArrayList<>();
         for (UUID id : alive) {
             Player p = Bukkit.getPlayer(id);
@@ -927,6 +996,10 @@ public class GameManager implements Listener {
             }
         }
         return list;
+    }
+
+    private int getAliveCountIncludingOffline() {
+        return alive.size();
     }
 
     @EventHandler
@@ -978,7 +1051,9 @@ public class GameManager implements Listener {
 
         updateScoreboardAll();
 
-        if (phase == Phase.RUNNING && showdownEnabled && getAlivePlayers().size() <= 2) {
+        if (phase == Phase.RUNNING && showdownEnabled
+                && getAliveCountIncludingOffline() <= 2
+                && getAliveOnlinePlayers().size() >= 2) {
             Bukkit.getScheduler().runTask(plugin, this::startShowdown);
         }
 
@@ -988,9 +1063,15 @@ public class GameManager implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         UUID id = e.getPlayer().getUniqueId();
-        alive.remove(id);
+
         pendingLateJoinChoice.remove(id);
 
-        if (isRunning()) Bukkit.getScheduler().runTask(plugin, this::checkWinner);
+        if (gameParticipants.contains(id) && alive.contains(id)) {
+            return;
+        }
+
+        if (isRunning()) {
+            Bukkit.getScheduler().runTask(plugin, this::checkWinner);
+        }
     }
 }

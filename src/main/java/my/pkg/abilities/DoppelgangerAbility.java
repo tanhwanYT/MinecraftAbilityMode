@@ -23,7 +23,7 @@ import java.util.*;
 
 public class DoppelgangerAbility implements Ability {
 
-    private static final int COOLDOWN = 10;
+    private static final int COOLDOWN = 33;
     private static final int DURATION_TICKS = 20 * 3;
     private static final double MOVE_SPEED = 0.30;
     private static final double EXPLOSION_RADIUS = 3.5;
