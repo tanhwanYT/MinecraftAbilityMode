@@ -62,6 +62,8 @@ public class GameManager implements Listener {
 
     private Phase phase = Phase.IDLE;
 
+    private AbilitySystem abilitySystem;
+
     private BukkitTask ticker;
     private BukkitTask borderTask;
     private BukkitTask showdownGate;
@@ -116,6 +118,10 @@ public class GameManager implements Listener {
         this.plugin = plugin;
 
         applyNormalModeConfig();
+    }
+
+    public void setAbilitySystem(AbilitySystem abilitySystem) {
+        this.abilitySystem = abilitySystem;
     }
 
     public Phase getPhase() {
@@ -748,6 +754,62 @@ public class GameManager implements Listener {
         player.sendMessage("§a[게임] 목숨 1개로 게임에 참가했습니다!");
     }
 
+    private void joinAsPrepStarter(Player player) {
+        if (abilitySystem == null) {
+            player.sendMessage("§c[게임] AbilitySystem이 연결되지 않아 참가 처리에 실패했습니다.");
+            return;
+        }
+
+        Collection<my.pkg.abilities.Ability> abilities = abilitySystem.getRegisteredAbilities();
+        if (abilities.isEmpty()) {
+            player.sendMessage("§c[게임] 등록된 능력이 없습니다.");
+            return;
+        }
+
+        UUID id = player.getUniqueId();
+
+        gameParticipants.add(id);
+        alive.add(id);
+        lives.put(id, START_LIVES);
+        pendingRespawn.remove(id);
+        pendingLateJoinChoice.remove(id);
+
+        player.getInventory().clear();
+        player.getEquipment().clear();
+
+        List<my.pkg.abilities.Ability> list = new ArrayList<>(abilities);
+        my.pkg.abilities.Ability randomAbility = list.get(new Random().nextInt(list.size()));
+
+        abilitySystem.grant(player, randomAbility);
+
+        if (miniMode) {
+            abilitySystem.giveMiniStartItems(player, true);
+        } else {
+            abilitySystem.giveDefaultStartItems(player, true);
+        }
+
+        setAlivePlayer(player);
+
+        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, prepEffectTicks, 4, true, false, true));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, prepEffectTicks, 0, true, false, true));
+
+        if (bossBar != null) {
+            bossBar.addPlayer(player);
+        }
+
+        if (scoreboard != null) {
+            player.setScoreboard(scoreboard);
+        }
+
+        updateScoreboardAll();
+
+        player.sendMessage("§a[게임] 준비시간 중 참가했습니다!");
+        player.sendMessage("§a[능력] §f" + randomAbility.name() + " 능력이 부여되었습니다!");
+        player.sendMessage("§e[게임] 남은 목숨: §c" + START_LIVES);
+
+        Bukkit.broadcastMessage("§a[게임] §f" + player.getName() + "§7 님이 준비시간 중 참가자로 추가되었습니다.");
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
@@ -758,6 +820,14 @@ public class GameManager implements Listener {
 
         if (phase == Phase.IDLE || phase == Phase.ENDED) {
             if (scoreboard != null) player.setScoreboard(scoreboard);
+            return;
+        }
+
+        if (phase == Phase.PREP && !gameParticipants.contains(player.getUniqueId())) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
+                joinAsPrepStarter(player);
+            }, 20L);
             return;
         }
 

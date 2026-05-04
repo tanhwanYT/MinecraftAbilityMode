@@ -31,6 +31,7 @@ public final class MyPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(this.gameManager, this);
 
         this.abilitySystem = new AbilitySystem(this, this.gameManager);
+        this.gameManager.setAbilitySystem(this.abilitySystem);
         this.abilityPickManager = new AbilityPickManager(this, this.abilitySystem, this.supplyManager, this.gameManager);
 
         this.abilitySystem.setAbilityPickManager(this.abilityPickManager);
