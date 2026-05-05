@@ -115,6 +115,7 @@ public class SupplyManager implements Listener {
         add(new OldPunishmentPostcardItem(itemIdKey));
         add(new ThorTridentItem(itemIdKey, new NamespacedKey(plugin, "thor_trident_projectile")));
         add(new StatAnvilItem(plugin, itemIdKey));
+        add(new MonsterBallItem(plugin, itemIdKey));
     }
 
     private void add(SupplyItem item) { items.put(item.id(), item); }
@@ -134,6 +135,7 @@ public class SupplyManager implements Listener {
         loot.add(new Weighted("old_punishment_postcard", 10));
         loot.add(new Weighted("thor_trident", 10));
         loot.add(new Weighted("stat_anvil", 10));
+        loot.add(new Weighted("monster_ball", 10));
     }
 
     private void spawnCrateNearRandomPlayer() {
