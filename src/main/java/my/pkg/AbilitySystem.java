@@ -45,6 +45,9 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
     private static final int MINI_LAPIS_COUNT = 8;
     private static final int MINI_XP_AMOUNT = 120;
 
+    private ThreeChoiceManager threeChoiceManager;
+
+
     public AbilitySystem(JavaPlugin plugin, GameManager gameManager) {
         this.plugin = plugin;
         this.gameManager = gameManager;
@@ -77,6 +80,10 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         return registry.get(id.toLowerCase());
     }
 
+    public void setThreeChoiceManager(ThreeChoiceManager threeChoiceManager) {
+        this.threeChoiceManager = threeChoiceManager;
+    }
+
     public PlayerState getState(Player player) {
         return states.computeIfAbsent(player.getUniqueId(), PlayerState::new);
     }
@@ -96,7 +103,8 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     "start",
                     "startmini",
                     "startpick",
-                    "rerollitem"
+                    "rerollitem",
+                    "startthree"
             );
             return partialMatch(args[0], subs);
         }
@@ -378,6 +386,20 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             grant(target, a);
             sender.sendMessage("Gave " + a.name() + " to " + target.getName());
             target.sendMessage("You got ability: " + a.name());
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("startthree")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
+            if (threeChoiceManager == null) {
+                sender.sendMessage("ThreeChoiceManager is not connected.");
+                return true;
+            }
+
+            threeChoiceManager.startThreeChoiceGame(sender);
             return true;
         }
 

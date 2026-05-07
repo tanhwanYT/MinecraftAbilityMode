@@ -441,5 +441,6 @@ public class AbilityPickManager implements Listener {
         putReward(new RewardInfo("thor_trident", "토르의 삼지창", "던지면 착지 지점에 약한 번개가 내리칩니다.", Material.TRIDENT));
         putReward(new RewardInfo("stat_anvil", "능력치 모루", "우클릭시 랜덤 능력치를 획득합니다.", Material.ANVIL));
         putReward(new RewardInfo("monster_ball", "몬스터 볼", "상대에게 적중시 5초동안 몬스터볼에 가둘수있습니다.", Material.SNOWBALL));
+        putReward(new RewardInfo("bluetooth_shower", "블루투스 샤워기", "상대에게 물을 뿌려 뒤로 밀쳐낼수있습니다.", Material.GLASS_BOTTLE));
     }
 }

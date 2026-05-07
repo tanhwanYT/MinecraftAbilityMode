@@ -33,7 +33,11 @@ public final class MyPlugin extends JavaPlugin {
         this.abilitySystem = new AbilitySystem(this, this.gameManager);
         this.gameManager.setAbilitySystem(this.abilitySystem);
         this.abilityPickManager = new AbilityPickManager(this, this.abilitySystem, this.supplyManager, this.gameManager);
+        ThreeChoiceManager threeChoiceManager = new ThreeChoiceManager(this, abilitySystem, supplyManager, gameManager);
 
+        getServer().getPluginManager().registerEvents(threeChoiceManager, this);
+
+        abilitySystem.setThreeChoiceManager(threeChoiceManager);
         this.abilitySystem.setAbilityPickManager(this.abilityPickManager);
 
         getServer().getPluginManager().registerEvents(this.abilityPickManager, this);

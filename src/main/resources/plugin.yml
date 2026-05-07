@@ -5,8 +5,8 @@ api-version: "1.21"
 
 commands:
   ability:
-    description: Ability commands
-    usage: /ability <me|give|start>
+    description: Ability game commands
+    usage: /ability <me|give|start|startmini|startpick|startthree>
   supply:
     description: Supply items command
     usage: /supply
