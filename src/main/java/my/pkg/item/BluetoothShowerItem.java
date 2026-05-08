@@ -13,6 +13,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.event.block.BlockBreakEvent;
 
 import java.util.*;
 
@@ -24,6 +26,9 @@ public class BluetoothShowerItem implements SupplyItem {
     private static final double RANGE = 8.0;
     private static final double KNOCKBACK = 0.65;
     private static final long FIRE_INTERVAL = 2L;
+
+    private final Map<UUID, Long> lastToggle = new HashMap<>();
+    private final Map<UUID, Integer> spamToggle = new HashMap<>();
 
     public BluetoothShowerItem(NamespacedKey itemIdKey) {
         this.itemIdKey = itemIdKey;
@@ -45,7 +50,7 @@ public class BluetoothShowerItem implements SupplyItem {
                     "§7우클릭으로 ON / OFF",
                     "§7켜져 있는 동안 물줄기를 발사합니다.",
                     "§7물줄기에 맞은 상대를 밀쳐냅니다.",
-                    "§c내구도를 모두 쓰면 깨집니다."
+                    "§c내구도를 모두 쓰거나 '소중히' 다루지 않으면 깨집니다..."
             ));
             meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, id());
             item.setItemMeta(meta);
@@ -56,9 +61,41 @@ public class BluetoothShowerItem implements SupplyItem {
 
     @Override
     public void onRightClick(JavaPlugin plugin, Player p, PlayerInteractEvent e) {
+
+        if (e.getHand() != EquipmentSlot.HAND) return;
         e.setCancelled(true);
 
         UUID uuid = p.getUniqueId();
+
+        long now = System.currentTimeMillis();
+
+        long last = lastToggle.getOrDefault(uuid, 0L);
+
+        if (now - last < 400) {
+            int count = spamToggle.getOrDefault(uuid, 0) + 1;
+            spamToggle.put(uuid, count);
+
+            if (count >= 12) {
+                ItemStack item = p.getInventory().getItemInMainHand();
+
+                p.getInventory().setItemInMainHand(null);
+
+                p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.5f);
+
+                p.sendMessage("§c블루투스 샤워기를 너무 자주 껐다 켰다 해서");
+                p.sendMessage("§c오류가 나 부서져버렸다!");
+
+                stop(p);
+
+                spamToggle.remove(uuid);
+                lastToggle.remove(uuid);
+                return;
+            }
+        } else {
+            spamToggle.put(uuid, 0);
+        }
+
+        lastToggle.put(uuid, now);
 
         if (activeTasks.containsKey(uuid)) {
             stop(p);
@@ -160,6 +197,19 @@ public class BluetoothShowerItem implements SupplyItem {
 
         meta.setDamage(nextDamage);
         item.setItemMeta(meta);
+    }
+
+    public void onBlockBreak(Player p) {
+        ItemStack item = p.getInventory().getItemInMainHand();
+
+        if (!isThisItem(item)) return;
+
+        p.getInventory().setItemInMainHand(null);
+
+        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.8f);
+        p.sendMessage("§c블록을 부수다가 블루투스 샤워기가 부서져 버렸다...");
+
+        stop(p);
     }
 
     private boolean isThisItem(ItemStack item) {

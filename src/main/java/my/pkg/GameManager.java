@@ -1077,7 +1077,9 @@ public class GameManager implements Listener {
         Player p = e.getPlayer();
         UUID id = p.getUniqueId();
 
-        if (isRunning() && !alive.contains(id)) {
+        int life = lives.getOrDefault(id, 0);
+
+        if (isRunning() && life <= 0) {
             e.setRespawnLocation(p.getWorld().getSpawnLocation().clone().add(0.5, 1, 0.5));
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (p.isOnline()) p.setGameMode(GameMode.SPECTATOR);
@@ -1089,6 +1091,24 @@ public class GameManager implements Listener {
         if (resp != null) {
             e.setRespawnLocation(resp);
         }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!p.isOnline()) return;
+            if (!isRunning()) return;
+
+            if (lives.getOrDefault(id, 0) > 0) {
+                alive.add(id);
+                p.setGameMode(GameMode.SURVIVAL);
+                p.setFoodLevel(20);
+                p.setSaturation(20);
+
+                double maxHealth = p.getAttribute(Attribute.MAX_HEALTH) != null
+                        ? p.getAttribute(Attribute.MAX_HEALTH).getValue()
+                        : 20.0;
+
+                p.setHealth(maxHealth);
+            }
+        }, 1L);
     }
 
     @EventHandler

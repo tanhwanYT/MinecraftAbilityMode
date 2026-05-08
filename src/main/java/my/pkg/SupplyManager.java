@@ -23,6 +23,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.entity.Player;
 import org.bukkit.World;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 
 import java.util.*;
@@ -61,8 +62,6 @@ public class SupplyManager implements Listener {
 
         registerItems();
         buildLootTable();
-
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     public void giveSupplyItem(Player player, String id) {
@@ -312,6 +311,20 @@ public class SupplyManager implements Listener {
             if (r < acc) return w.id;
         }
         return loot.get(0).id;
+    }
+
+    @EventHandler
+    public void onBreak(BlockBreakEvent e) {
+        ItemStack hand = e.getPlayer().getInventory().getItemInMainHand();
+
+        if (!isSupplyItem(hand)) return;
+
+        String id = getSupplyId(hand);
+        SupplyItem item = items.get(id);
+
+        if (item instanceof BluetoothShowerItem shower) {
+            shower.onBlockBreak(e.getPlayer());
+        }
     }
 
     private boolean isSupplyItem(ItemStack stack) {

@@ -3,6 +3,7 @@ package my.pkg.abilities;
 import my.pkg.AbilitySystem;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -55,6 +56,7 @@ public class GolemAbility implements Ability {
     @Override
     public void onRemove(AbilitySystem system, Player player) {
         removeAttackSpeedPenalty(player);
+        removeBonusHealth(player);
     }
 
     @Override
@@ -79,14 +81,22 @@ public class GolemAbility implements Ability {
         }
 
         dir.setY(LAUNCH_Y);
-        victim.setVelocity(dir);
 
-        victim.getWorld().playSound(
-                victim.getLocation(),
-                Sound.ENTITY_IRON_GOLEM_ATTACK,
-                0.8f,
-                1.2f
-        );
+        Vector finalDir = dir;
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!victim.isOnline() || victim.isDead()) return;
+
+            victim.setFallDistance(0);
+            victim.setVelocity(finalDir);
+
+            victim.getWorld().playSound(
+                    victim.getLocation(),
+                    Sound.ENTITY_IRON_GOLEM_ATTACK,
+                    0.8f,
+                    1.2f
+            );
+        });
     }
 
     private void applyAttackSpeedPenalty(Player player) {
