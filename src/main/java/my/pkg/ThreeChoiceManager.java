@@ -44,6 +44,8 @@ public class ThreeChoiceManager implements Listener {
     private final Map<UUID, BukkitTask> reopenTasks = new HashMap<>();
     private final Random random = new Random();
 
+    private final Map<UUID, Boolean> rollingAbility = new HashMap<>();
+
     private final List<RewardInfo> rewards = new ArrayList<>();
 
     public ThreeChoiceManager(JavaPlugin plugin,
@@ -88,7 +90,7 @@ public class ThreeChoiceManager implements Listener {
             awaitingAbility.add(p.getUniqueId());
             awaitingReward.remove(p.getUniqueId());
 
-            openAbilityUI(p);
+            openAbilityRouletteUI(p);
             p.sendMessage("§b[3지선다] §f능력 3개 중 하나를 선택하세요!");
         }
 
@@ -108,20 +110,102 @@ public class ThreeChoiceManager implements Listener {
         return new ArrayList<>(list.subList(0, Math.min(count, list.size())));
     }
 
-    private void openAbilityUI(Player player) {
+    private void openAbilityRouletteUI(Player player) {
         Inventory inv = Bukkit.createInventory(null, 27, ABILITY_TITLE);
+        player.openInventory(inv);
 
-        List<Ability> choices = abilityChoices.get(player.getUniqueId());
-        if (choices == null || choices.isEmpty()) return;
+        UUID uuid = player.getUniqueId();
+        rollingAbility.put(uuid, true);
+
+        List<Ability> allAbilities = new ArrayList<>(abilitySystem.getRegisteredAbilities());
+        List<Ability> finalChoices = abilityChoices.get(uuid);
+
+        if (allAbilities.isEmpty() || finalChoices == null || finalChoices.isEmpty()) {
+            rollingAbility.remove(uuid);
+            return;
+        }
 
         int[] slots = {11, 13, 15};
 
-        for (int i = 0; i < choices.size() && i < 3; i++) {
-            Ability ability = choices.get(i);
-            inv.setItem(slots[i], createAbilityItem(ability));
+        BukkitTask[] taskHolder = new BukkitTask[1];
+
+        taskHolder[0] = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int tick = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline()) {
+                    rollingAbility.remove(uuid);
+                    taskHolder[0].cancel();
+                    return;
+                }
+
+                if (!awaitingAbility.contains(uuid)) {
+                    rollingAbility.remove(uuid);
+                    taskHolder[0].cancel();
+                    return;
+                }
+
+                if (!ABILITY_TITLE.equals(player.getOpenInventory().getTitle())) {
+                    rollingAbility.remove(uuid);
+                    taskHolder[0].cancel();
+                    return;
+                }
+
+                Inventory top = player.getOpenInventory().getTopInventory();
+
+                tick++;
+
+                for (int slot : slots) {
+                    Ability randomAbility = allAbilities.get(random.nextInt(allAbilities.size()));
+                    top.setItem(slot, createRollingAbilityItem(randomAbility));
+                }
+
+                float pitch = Math.min(2.0f, 0.8f + tick * 0.05f);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, pitch);
+
+                if (tick >= 24) {
+                    rollingAbility.remove(uuid);
+
+                    for (int i = 0; i < finalChoices.size() && i < 3; i++) {
+                        top.setItem(slots[i], createAbilityItem(finalChoices.get(i)));
+                    }
+
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.8f);
+                    player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.4f);
+                    player.sendMessage("§b[3지선다] §f능력이 결정되었습니다!");
+
+                    taskHolder[0].cancel();
+                }
+            }
+        }, 0L, 2L);
+    }
+
+    private ItemStack createRollingAbilityItem(Ability ability) {
+        AbilityInfo info = abilityInfos.get(ability.id().toLowerCase());
+
+        Material icon = Material.NETHER_STAR;
+        String displayName = ability.name();
+
+        if (info != null) {
+            icon = info.icon();
+            displayName = info.name();
         }
 
-        player.openInventory(inv);
+        ItemStack item = new ItemStack(icon);
+        ItemMeta meta = item.getItemMeta();
+
+        if (meta != null) {
+            meta.setDisplayName("§7??? §f" + displayName);
+            meta.setLore(List.of(
+                    "§8능력 추첨 중...",
+                    "§7잠시만 기다리세요."
+            ));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            item.setItemMeta(meta);
+        }
+
+        return item;
     }
 
     private ItemStack createAbilityItem(Ability ability) {
@@ -212,6 +296,11 @@ public class ThreeChoiceManager implements Listener {
         if (ABILITY_TITLE.equals(title)) {
             event.setCancelled(true);
 
+            if (rollingAbility.getOrDefault(player.getUniqueId(), false)) {
+                player.sendMessage("§e[3지선다] 아직 능력이 결정되는 중입니다!");
+                return;
+            }
+
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || !clicked.hasItemMeta()) return;
 
@@ -278,7 +367,7 @@ public class ThreeChoiceManager implements Listener {
                 if (!awaitingAbility.contains(uuid)) return;
 
                 player.sendMessage("§e[3지선다] 능력을 골라야 합니다.");
-                openAbilityUI(player);
+                openAbilityRouletteUI(player);
             }, 20L);
 
             reopenTasks.put(uuid, task);

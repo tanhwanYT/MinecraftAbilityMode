@@ -14,11 +14,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SpeedingAbility implements Ability {
     // 밸런스
     private static final int ACTIVE_TICKS = 20 * 5;  // 5초 활성
-    private static final int SLOW_TICKS = 20 * 4;    // 4초 슬로우 패널티
+    private static final int SLOW_TICKS = 20 * 3;    // 3초 슬로우 패널티
     private static final Map<UUID, Integer> activeUntilTick = new ConcurrentHashMap<>();
     // 밀치기 쿨(연타 방지)
     private static final long BUMP_CD_MS = 350;
     private static final Map<UUID, Long> lastBumpAt = new ConcurrentHashMap<>();
+
+    private static final int REWARD_SPEED_TICKS = 20 * 2;
+    private static final Map<UUID, Boolean> touchedYellowWool = new ConcurrentHashMap<>();
 
     // 밀치기 세기
     private static final double BUMP_RANGE = 1.15;
@@ -32,13 +35,14 @@ public class SpeedingAbility implements Ability {
     public String name() { return "속도위반"; }
 
     @Override
-    public int cooldownSeconds() { return 25; }
+    public int cooldownSeconds() { return 30; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
         player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다.");
         player.sendMessage("플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
+        player.sendMessage("노란양털을 한 번도 밟지 않는다면 2초간 더 큰 신속을 얻습니다.");
     }
 
     @Override
@@ -52,10 +56,10 @@ public class SpeedingAbility implements Ability {
 
         int endTick = nowTick + ACTIVE_TICKS;
         activeUntilTick.put(player.getUniqueId(), endTick);
+        touchedYellowWool.put(player.getUniqueId(), false);
 
         player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.8f);
 
-        // 5초 후 패널티(슬로우 2초) + 비활성화
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -66,10 +70,22 @@ public class SpeedingAbility implements Ability {
 
                 activeUntilTick.remove(player.getUniqueId());
 
+                boolean violated = touchedYellowWool.getOrDefault(player.getUniqueId(), false);
+                touchedYellowWool.remove(player.getUniqueId());
+
                 if (player.isOnline() && !player.isDead()) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, SLOW_TICKS, 1, false, false, true));
-                    player.sendMessage("§c[속도위반] §f과속 단속! 4초간 감속...");
-                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
+
+                    if (violated) {
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, SLOW_TICKS, 2, false, false, true));
+                        player.sendMessage("§c[속도위반] §f과속 단속! 3초간 감속...");
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
+                    } else {
+                        player.removePotionEffect(PotionEffectType.SPEED);
+
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, REWARD_SPEED_TICKS, 4, false, false, true));
+                        player.sendMessage("§a[속도위반] §f과속단속을 잘 지켰습니다! §b신속 5§f를 받습니다.");
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.5f);
+                    }
                 }
             }
         }.runTaskLater(system.getPlugin(), ACTIVE_TICKS);
@@ -81,8 +97,6 @@ public class SpeedingAbility implements Ability {
     public void onMove(AbilitySystem system, PlayerMoveEvent event) {
         Player p = event.getPlayer();
 
-
-
         // 활성 상태가 아니면 아무것도 안 함
         int nowTick = (int) system.getPlugin().getServer().getCurrentTick();
         Integer until = activeUntilTick.get(p.getUniqueId());
@@ -91,6 +105,8 @@ public class SpeedingAbility implements Ability {
         // 발밑 블록 체크
         Material under = event.getTo().getBlock().getRelative(0, -1, 0).getType();
         if (under == Material.YELLOW_WOOL) {
+            touchedYellowWool.put(p.getUniqueId(), true);
+
             // 활성 중에 노란 양털 밟으면 스피드 갱신
             p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20, 2, false, false, true));
 
@@ -141,6 +157,7 @@ public class SpeedingAbility implements Ability {
 
     @Override
     public void onRemove(AbilitySystem system, Player player) {
+        touchedYellowWool.remove(player.getUniqueId());
         activeUntilTick.remove(player.getUniqueId());
         lastBumpAt.remove(player.getUniqueId());
         player.removePotionEffect(PotionEffectType.SPEED);
