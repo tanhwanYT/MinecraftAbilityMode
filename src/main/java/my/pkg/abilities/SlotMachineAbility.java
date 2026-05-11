@@ -36,7 +36,7 @@ public class SlotMachineAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("슬롯머신 : 머리위에 슬롯머신이 돌아갑니다. 버프 종류, 버프 레벨, 버프 시간을 정해서 부여합니다.");
+        player.sendMessage("§a슬롯머신 §7: 머리위에 슬롯머신이 돌아갑니다. 버프 종류, 버프 레벨, 버프 시간을 정해서 부여합니다.");
     }
 
     @Override

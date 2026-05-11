@@ -32,7 +32,7 @@ public class KiyathowAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("끼얏호우 : 능력사용시 폭죽이 터집니다. 플레이어는 8초동안 이동속도가 빨라지고, 추가체력과 재생버프, 성급함, 점프강화를 얻습니다.");
+        player.sendMessage("§a끼얏호우 §7: 능력사용시 폭죽이 터집니다. 플레이어는 8초동안 이동속도가 빨라지고, 추가체력과 재생버프, 성급함, 점프강화를 얻습니다.");
     }
 
     @Override

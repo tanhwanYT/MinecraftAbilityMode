@@ -61,7 +61,7 @@ public class ParlemoAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("팔레르모 : 1 VS 1 의 상황에서는 팔레르모를 배운 제가 더 유리합니다. 하지만 다수의 전투에서는 힘을 쓰기 어렵습니다.");
+        player.sendMessage("§a팔레르모 §7: 1 VS 1 의 상황에서는 팔레르모를 배운 제가 더 유리합니다. 하지만 다수의 전투에서는 힘을 쓰기 어렵습니다.");
         player.sendMessage("§7- 스택 " + PARRY_REQ_STACK + " 이상: 20% 확률 패링(피해 무효)");
     }
 

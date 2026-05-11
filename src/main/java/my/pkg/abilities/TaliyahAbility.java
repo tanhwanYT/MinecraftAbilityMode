@@ -64,7 +64,7 @@ public class TaliyahAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("탈리아 : 능력 사용시 벽을 세우며 돌진합니다.");
+        player.sendMessage("§a탈리아 §7: 능력 사용시 벽을 세우며 돌진합니다.");
         player.sendMessage("§7- 쉬프트를 누르면 즉시 내립니다.");
         player.sendMessage("§7- 벽은 일정 시간 뒤 사라집니다.");
     }

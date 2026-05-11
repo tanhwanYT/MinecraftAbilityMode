@@ -19,7 +19,7 @@ public class JokerAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("조커 : 패시브로 미러링 능력(자신을 죽인 플레이어 같이 죽이기)이 있습니다.");
+        player.sendMessage("§a조커 §7: 패시브로 미러링 능력(자신을 죽인 플레이어 같이 죽이기)이 있습니다.");
     }
 
     @Override

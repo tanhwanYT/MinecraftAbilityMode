@@ -57,7 +57,7 @@ public class StoneAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("돌 : 같은 자리(3x3)에서 버티면 1분마다 최대체력 +1하트. 벗어나면 서서히 감소.");
+        player.sendMessage("§a돌 §7: 같은 자리(3x3)에서 버티면 1분마다 최대체력 +1하트. 벗어나면 서서히 감소.");
         // 처음 부여 시: 현재 위치를 기준점으로 시작 (원하면 anchors.put 안 하고 “첫 정착 시점에만” 잡도록 바꿀 수도 있음)
         setNewAnchor(player);
     }

@@ -71,7 +71,7 @@ public class SniperAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("스나이퍼 : 우클릭 시 시즈모드(3초 조준)로 돌입합니다. 조준 중에는 빨간 잔상이 보이고, 3초 뒤 강한 탄환이 발사됩니다.");
+        player.sendMessage("§a스나이퍼 §7: 우클릭 시 시즈모드(3초 조준)로 돌입합니다. 조준 중에는 빨간 잔상이 보이고, 3초 뒤 강한 탄환이 발사됩니다.");
     }
 
     @Override

@@ -47,7 +47,7 @@ public class BackAttackerAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("백어택커 : 상대의 뒤를 공격하면 추가 피해를 입힙니다. 능력 사용시 바라보는 방향으로 돌진합니다.");
+        player.sendMessage("§a백어택커 §7: 상대의 뒤를 공격하면 추가 피해를 입힙니다. 능력 사용시 바라보는 방향으로 돌진합니다.");
     }
 
     @Override

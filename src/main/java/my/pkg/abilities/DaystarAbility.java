@@ -39,7 +39,7 @@ public class DaystarAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("데이스타 : 능력사용시 대상의 발 밑에 불이 붙게 만들며, 5초후 폭발 대미지를 입힙니다.");
+        player.sendMessage("§a데이스타 §7: 능력사용시 대상의 발 밑에 불이 붙게 만들며, 5초후 폭발 대미지를 입힙니다.");
     }
 
     @Override

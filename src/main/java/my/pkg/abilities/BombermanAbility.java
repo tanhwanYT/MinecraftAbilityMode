@@ -43,7 +43,7 @@ public class BombermanAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("봄버맨 : 시간이 지날수록 TNT가 적립됩니다. 능력 사용 시 적립된 TNT를 전부 소환합니다");
+        player.sendMessage("§a봄버맨 §7: 시간이 지날수록 TNT가 적립됩니다. 능력 사용 시 적립된 TNT를 전부 소환합니다");
         player.sendMessage("§7- 적립: " + (CHARGE_INTERVAL_TICKS / 20) + "초마다 +1 (최대 " + MAX_CHARGES + "개)");
         player.sendMessage("§7- 폭발 피해 면역 유지");
 

@@ -1,15 +1,17 @@
 package my.pkg.abilities;
 
-import my.pkg.AbilitySystem;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+
+import my.pkg.AbilitySystem;
 
 public class SpeedingAbility implements Ability {
     // 밸런스
@@ -39,10 +41,9 @@ public class SpeedingAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        // 사용법 안내
-        player.sendMessage("속도위반 : 5초 동안 노란양털을 밟았을때 속도버프를 받습니다.");
-        player.sendMessage("플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
-        player.sendMessage("노란양털을 한 번도 밟지 않는다면 2초간 더 큰 신속을 얻습니다.");
+        player.sendMessage("§a속도위반 §7: 5초 동안 노란양털을 밟았을때 속도버프를 받습니다.");
+        player.sendMessage("§7플레이어랑 부딫히면 상대를 날려버립니다. 끝나면 2초간 느려집니다");
+        player.sendMessage("§7노란양털을 한 번도 밟지 않는다면 2초간 더 큰 신속을 얻습니다.");
     }
 
     @Override

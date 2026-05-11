@@ -32,7 +32,7 @@ public class ViperAbility implements Ability {
     @Override
     public void onGrant(AbilitySystem system, Player player) {
         // 사용법 안내
-        player.sendMessage("바이퍼 : 능력사용시 자신의 반경 9칸에 독가스지대를 생성합니다. 독가스 지대는 상대에게 슬로우와 독 피해를 입힙니다.");
+        player.sendMessage("§a바이퍼 §7: 능력사용시 자신의 반경 9칸에 독가스지대를 생성합니다. 독가스 지대는 상대에게 슬로우와 독 피해를 입힙니다.");
     }
 
     @Override

@@ -71,7 +71,7 @@ public class donationAbility implements Ability, Listener {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("도네이션 : 바라보는 플레이어를 잠시 스턴시킵니다. 상대는 쉬프트를 여러 번 눌러야 해제됩니다.");
+        player.sendMessage("§a도네이션 §7: 바라보는 플레이어를 잠시 스턴시킵니다. 상대는 쉬프트를 여러 번 눌러야 해제됩니다.");
     }
 
     @Override

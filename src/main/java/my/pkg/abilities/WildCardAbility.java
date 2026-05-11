@@ -43,8 +43,8 @@ public class WildCardAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("와일드카드 : 네더 스타 우클릭 시 액티브 능력 중 하나가 랜덤으로 발동됩니다");
-        player.sendMessage("-말파이트, 바이퍼, 끼얏호우, 앤트맨, 스나이퍼, 도네이션, 패닉, 라이징스타, 사슬팔, 섀도우스탭, 탈리아, 백어택커-");
+        player.sendMessage("§a와일드카드 §7: 네더 스타 우클릭 시 액티브 능력 중 하나가 랜덤으로 발동됩니다");
+        player.sendMessage("§7-말파이트, 바이퍼, 끼얏호우, 앤트맨, 스나이퍼, 도네이션, 패닉, 라이징스타, 사슬팔, 섀도우스탭, 탈리아, 백어택커-");
     }
 
     @Override

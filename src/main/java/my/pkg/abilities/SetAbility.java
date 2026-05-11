@@ -69,7 +69,7 @@ public class SetAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("세트 : 피격 시 투지 스택을 쌓습니다. 능력사용시 1초 후 전방에 투지스택에 비례한 부채꼴 공격을 가합니다.");
+        player.sendMessage("§a세트 §7: 피격 시 투지 스택을 쌓습니다. 능력사용시 1초 후 전방에 투지스택에 비례한 부채꼴 공격을 가합니다.");
     }
 
     /**

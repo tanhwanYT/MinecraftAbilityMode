@@ -29,7 +29,7 @@ public class GlowAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("라이징스타 : 우클릭 시 3초 후 섬광을 터트립니다. 본인은 6초간 (갑옷까지) 투명과 신속을 얻습니다.");
+        player.sendMessage("§a라이징스타 §7: 우클릭 시 3초 후 섬광을 터트립니다. 본인은 6초간 (갑옷까지) 투명과 신속을 얻습니다.");
         player.sendMessage("§7※ 갑옷 투명은 6초간 갑옷을 잠깐 벗기는 방식(방어력도 감소)으로 구현됨.");
     }
 
