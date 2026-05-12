@@ -104,7 +104,8 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                     "startmini",
                     "startpick",
                     "rerollitem",
-                    "startthree"
+                    "startthree",
+                    "startdeathmatch"
             );
             return partialMatch(args[0], subs);
         }
@@ -400,6 +401,33 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
             }
 
             threeChoiceManager.startThreeChoiceGame(sender);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("startdeathmatch")) {
+            if (!sender.isOp()) {
+                sender.sendMessage("OP only.");
+                return true;
+            }
+            if (registry.isEmpty()) {
+                sender.sendMessage("No abilities registered.");
+                return true;
+            }
+
+            List<Ability> abilities = new ArrayList<>(registry.values());
+            Random random = new Random();
+
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                Ability randomAbility = abilities.get(random.nextInt(abilities.size()));
+                grant(p, randomAbility);
+
+                p.sendMessage("§c[데스매치] §f능력: §e" + randomAbility.name());
+
+                giveDefaultStartItems(p, true);
+            }
+
+            gameManager.startDeathmatchGame();
+            sender.sendMessage("§cDeathmatch started!");
             return true;
         }
 

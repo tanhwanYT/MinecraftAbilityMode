@@ -102,6 +102,19 @@ public class GameManager implements Listener {
     private static final int MINI_SHOWDOWN_AFTER_SEC = 180;
     private static final double[] MINI_BORDER_SIZES = {150, 100, 70, 40, 25};
 
+    // ===== 데스매치 모드 기본값 =====
+    private boolean deathmatchMode = false;
+
+    private final Map<UUID, Integer> kills = new ConcurrentHashMap<>();
+    private int deathmatchTargetKills = 0;
+
+    private BukkitTask deathmatchRerollTask;
+
+    private static final int DEATHMATCH_PREP_SEC = 60;
+    private static final int DEATHMATCH_SHRINK_INTERVAL_SEC = 120;
+    private static final int DEATHMATCH_SHOWDOWN_AFTER_SEC = 999999;
+    private static final double[] DEATHMATCH_BORDER_SIZES = {300, 180, 100, 60, 35, 20};
+
     // 쇼다운 승부예측
     private static final String SHOWDOWN_VOTE_TITLE = "§6쇼다운 승부예측";
     private final Map<UUID, UUID> showdownVotes = new ConcurrentHashMap<>();
@@ -144,6 +157,7 @@ public class GameManager implements Listener {
         World w = Bukkit.getWorlds().get(0);
 
         miniMode = false;
+        deathmatchMode = false;
         prepSec = NORMAL_PREP_SEC;
         shrinkIntervalSec = NORMAL_SHRINK_INTERVAL_SEC;
         showdownAfterSec = NORMAL_SHOWDOWN_AFTER_SEC;
@@ -164,6 +178,7 @@ public class GameManager implements Listener {
         World w = Bukkit.getWorlds().get(0);
 
         miniMode = true;
+        deathmatchMode = false;
         prepSec = MINI_PREP_SEC;
         shrinkIntervalSec = MINI_SHRINK_INTERVAL_SEC;
         showdownAfterSec = MINI_SHOWDOWN_AFTER_SEC;
@@ -183,6 +198,26 @@ public class GameManager implements Listener {
         randomSpawnMaxZ = 85.0;
     }
 
+    private void applyDeathmatchModeConfig() {
+        World w = Bukkit.getWorlds().get(0);
+
+        miniMode = false;
+        deathmatchMode = true;
+
+        prepSec = DEATHMATCH_PREP_SEC;
+        shrinkIntervalSec = DEATHMATCH_SHRINK_INTERVAL_SEC;
+        showdownAfterSec = DEATHMATCH_SHOWDOWN_AFTER_SEC;
+        currentBorderSizes = Arrays.copyOf(DEATHMATCH_BORDER_SIZES, DEATHMATCH_BORDER_SIZES.length);
+        prepEffectTicks = (prepSec + 5) * 20;
+
+        borderCenter = new Location(w, -183.0, w.getHighestBlockYAt(100, 100), -93.0);
+
+        randomSpawnMinX = -140.0;
+        randomSpawnMaxX = 70.0;
+        randomSpawnMinZ = -200.0;
+        randomSpawnMaxZ = 45.0;
+    }
+
     public void startGame() {
         applyNormalModeConfig();
         startConfiguredGame();
@@ -190,6 +225,11 @@ public class GameManager implements Listener {
 
     public void startMiniGame() {
         applyMiniModeConfig();
+        startConfiguredGame();
+    }
+
+    public void startDeathmatchGame() {
+        applyDeathmatchModeConfig();
         startConfiguredGame();
     }
 
@@ -202,6 +242,7 @@ public class GameManager implements Listener {
 
         alive.clear();
         lives.clear();
+        kills.clear();
         pendingRespawn.clear();
         pendingLateJoinChoice.clear();
         gameParticipants.clear();
@@ -211,16 +252,29 @@ public class GameManager implements Listener {
 
         if (supplyManager != null) supplyManager.start();
 
+        int onlineCount = Bukkit.getOnlinePlayers().size();
+        deathmatchTargetKills = Math.max(1, onlineCount * 2);
+
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID id = p.getUniqueId();
 
             gameParticipants.add(id);
             setAlivePlayer(p);
-            lives.put(id, START_LIVES);
+
+            if (deathmatchMode) {
+                lives.put(id, 999999);
+                kills.put(id, 0);
+            } else {
+                lives.put(id, START_LIVES);
+            }
         }
 
         initScoreboard();
-        Bukkit.broadcastMessage("§a[게임] 모든 플레이어 목숨: §e" + START_LIVES);
+        if (deathmatchMode) {
+            Bukkit.broadcastMessage("§c[데스매치] §f목표 킬 수: §e" + deathmatchTargetKills + "킬");
+        } else {
+            Bukkit.broadcastMessage("§a[게임] 모든 플레이어 목숨: §e" + START_LIVES);
+        }
 
         setupInitialBorder();
         applyPrepBuffs();
@@ -277,7 +331,12 @@ public class GameManager implements Listener {
             title = (miniMode ? "§d미니 도능 준비중" : "§a준비중") + " §f| 시작까지 §e" + phaseRemainingSec + "초";
             progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) prepSec));
         } else if (phase == Phase.RUNNING) {
-            title = (miniMode ? "§d미니 도능 진행중" : "§c진행중") + " §f| 다음 축소까지 §e" + phaseRemainingSec + "초";
+            if (deathmatchMode) {
+                title = "§c데스매치 §f| 목표 §e" + deathmatchTargetKills + "킬 §f| 다음 리롤/축소까지 §e" + phaseRemainingSec + "초";
+            } else {
+                title = (miniMode ? "§d미니 도능 진행중" : "§c진행중") + " §f| 다음 축소까지 §e" + phaseRemainingSec + "초";
+            }
+
             progress = Math.max(0.0, Math.min(1.0, phaseRemainingSec / (double) shrinkIntervalSec));
         } else if (phase == Phase.SHOWDOWN) {
             title = "§6결투 §f| 1 vs 1";
@@ -365,7 +424,8 @@ public class GameManager implements Listener {
         if (sm == null) return;
 
         scoreboard = sm.getNewScoreboard();
-        livesObj = scoreboard.registerNewObjective("lives", "dummy", "§c남은 목숨");
+        String title = deathmatchMode ? "§c킬 수" : "§c남은 목숨";
+        livesObj = scoreboard.registerNewObjective("lives", "dummy", title);
         livesObj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -378,12 +438,17 @@ public class GameManager implements Listener {
     private void updateScoreboardAll() {
         if (scoreboard == null || livesObj == null) return;
 
-        for (UUID id : lives.keySet()) {
+        Set<UUID> ids = deathmatchMode ? kills.keySet() : lives.keySet();
+
+        for (UUID id : ids) {
             Player p = Bukkit.getPlayer(id);
             if (p == null) continue;
 
-            int l = lives.getOrDefault(id, 0);
-            livesObj.getScore("§f" + p.getName()).setScore(l);
+            int score = deathmatchMode
+                    ? kills.getOrDefault(id, 0)
+                    : lives.getOrDefault(id, 0);
+
+            livesObj.getScore("§f" + p.getName()).setScore(score);
         }
     }
 
@@ -408,7 +473,7 @@ public class GameManager implements Listener {
                 }
             }
 
-            if (phase == Phase.RUNNING && showdownEnabled) {
+            if (!deathmatchMode && phase == Phase.RUNNING && showdownEnabled) {
                 if (getAliveCountIncludingOffline() <= 2 && getAliveOnlinePlayers().size() >= 2) {
                     startShowdown();
                 }
@@ -441,6 +506,39 @@ public class GameManager implements Listener {
 
         World w = Bukkit.getWorlds().get(0);
         w.playSound(w.getSpawnLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 1.5f);
+
+        if (deathmatchMode) {
+            startDeathmatchRerollTask();
+        }
+    }
+
+    private void startDeathmatchRerollTask() {
+        if (deathmatchRerollTask != null) {
+            deathmatchRerollTask.cancel();
+        }
+
+        deathmatchRerollTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!deathmatchMode || phase != Phase.RUNNING) return;
+            if (abilitySystem == null) return;
+
+            List<my.pkg.abilities.Ability> abilities = new ArrayList<>(abilitySystem.getRegisteredAbilities());
+            if (abilities.isEmpty()) return;
+
+            Random random = new Random();
+
+            Bukkit.broadcastMessage("§d[데스매치] §f3분 경과! 모든 플레이어의 능력이 리롤됩니다!");
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (!gameParticipants.contains(p.getUniqueId())) continue;
+                if (p.getGameMode() == GameMode.SPECTATOR) continue;
+
+                my.pkg.abilities.Ability newAbility = abilities.get(random.nextInt(abilities.size()));
+                abilitySystem.grant(p, newAbility);
+
+                p.sendMessage("§d[데스매치 리롤] §f새 능력: §a" + newAbility.name());
+                p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.4f);
+            }
+        }, 180L * 20L, 180L * 20L);
     }
 
     private void startShowdown() {
@@ -1010,6 +1108,7 @@ public class GameManager implements Listener {
 
     private void checkWinner() {
         if (phase == Phase.IDLE || phase == Phase.ENDED) return;
+        if (deathmatchMode) return;
 
         int aliveCount = getAliveCountIncludingOffline();
 
@@ -1055,6 +1154,10 @@ public class GameManager implements Listener {
         if (ticker != null) { ticker.cancel(); ticker = null; }
         if (borderTask != null) { borderTask.cancel(); borderTask = null; }
         if (showdownGate != null) { showdownGate.cancel(); showdownGate = null; }
+        if (deathmatchRerollTask != null) {
+            deathmatchRerollTask.cancel();
+            deathmatchRerollTask = null;
+        }
     }
 
     private List<Player> getAliveOnlinePlayers() {
@@ -1078,6 +1181,32 @@ public class GameManager implements Listener {
         UUID id = p.getUniqueId();
 
         int life = lives.getOrDefault(id, 0);
+
+        if (deathmatchMode && isRunning()) {
+            Location resp = pendingRespawn.remove(id);
+            if (resp != null) {
+                e.setRespawnLocation(resp);
+            } else {
+                e.setRespawnLocation(pickRandomRespawn(p.getWorld()));
+            }
+
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!p.isOnline()) return;
+
+                alive.add(id);
+                p.setGameMode(GameMode.SURVIVAL);
+                p.setFoodLevel(20);
+                p.setSaturation(20);
+
+                double maxHealth = p.getAttribute(Attribute.MAX_HEALTH) != null
+                        ? p.getAttribute(Attribute.MAX_HEALTH).getValue()
+                        : 20.0;
+
+                p.setHealth(maxHealth);
+            }, 1L);
+
+            return;
+        }
 
         if (isRunning() && life <= 0) {
             e.setRespawnLocation(p.getWorld().getSpawnLocation().clone().add(0.5, 1, 0.5));
@@ -1118,6 +1247,34 @@ public class GameManager implements Listener {
 
         if (!isRunning()) return;
         if (!alive.contains(id)) return;
+
+        if (deathmatchMode) {
+            Player killer = dead.getKiller();
+
+            if (killer != null && !killer.equals(dead) && gameParticipants.contains(killer.getUniqueId())) {
+                UUID killerId = killer.getUniqueId();
+                int newKills = kills.getOrDefault(killerId, 0) + 1;
+                kills.put(killerId, newKills);
+
+                Bukkit.broadcastMessage("§c[데스매치] §e" + killer.getName() + "§f 킬! §7(" + newKills + "/" + deathmatchTargetKills + ")");
+
+                if (newKills >= deathmatchTargetKills) {
+                    updateScoreboardAll();
+                    announceWinner(killer);
+                    return;
+                }
+            }
+
+            World w = dead.getWorld();
+            Location resp = pickRandomRespawn(w);
+            pendingRespawn.put(id, resp);
+
+            alive.add(id);
+            lives.put(id, 999999);
+
+            updateScoreboardAll();
+            return;
+        }
 
         int left = lives.getOrDefault(id, START_LIVES) - 1;
         lives.put(id, left);
