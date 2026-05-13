@@ -521,7 +521,12 @@ public class GameManager implements Listener {
             if (!deathmatchMode || phase != Phase.RUNNING) return;
             if (abilitySystem == null) return;
 
-            List<my.pkg.abilities.Ability> abilities = new ArrayList<>(abilitySystem.getRegisteredAbilities());
+            List<my.pkg.abilities.Ability> abilities = new ArrayList<>();
+
+            for (my.pkg.abilities.Ability ability : abilitySystem.getRegisteredAbilities()) {
+                if (ability.id().equalsIgnoreCase("bodyguard")) continue;
+                abilities.add(ability);
+            }
             if (abilities.isEmpty()) return;
 
             Random random = new Random();

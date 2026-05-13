@@ -414,7 +414,7 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
                 return true;
             }
 
-            List<Ability> abilities = new ArrayList<>(registry.values());
+            List<Ability> abilities = getDeathmatchAbilityPool();
             Random random = new Random();
 
             for (Player p : plugin.getServer().getOnlinePlayers()) {
@@ -619,6 +619,17 @@ public class AbilitySystem implements Listener, CommandExecutor, org.bukkit.comm
         }
 
         return true;
+    }
+
+    private List<Ability> getDeathmatchAbilityPool() {
+        List<Ability> list = new ArrayList<>();
+
+        for (Ability ability : registry.values()) {
+            if (ability.id().equalsIgnoreCase("bodyguard")) continue;
+            list.add(ability);
+        }
+
+        return list;
     }
 
     public void giveDefaultStartItems(Player p, boolean giveRerollTicket) {
