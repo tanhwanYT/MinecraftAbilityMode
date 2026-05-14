@@ -583,6 +583,9 @@ public class GameManager implements Listener {
         Player a = left.get(0);
         Player b = left.get(1);
 
+        rerollIfJokerForShowdown(a);
+        rerollIfJokerForShowdown(b);
+
         showdownPlayerAId = a.getUniqueId();
         showdownPlayerBId = b.getUniqueId();
         showdownVotes.clear();
@@ -626,6 +629,32 @@ public class GameManager implements Listener {
 
     private int getTotalVotes() {
         return showdownVotes.size();
+    }
+
+    private void rerollIfJokerForShowdown(Player player) {
+        if (abilitySystem == null) return;
+
+        AbilitySystem.PlayerState state = abilitySystem.getState(player);
+        if (state.getAbility() == null) return;
+
+        if (!state.getAbility().id().equalsIgnoreCase("joker")) return;
+
+        List<my.pkg.abilities.Ability> candidates = new ArrayList<>();
+
+        for (my.pkg.abilities.Ability ability : abilitySystem.getRegisteredAbilities()) {
+            if (ability.id().equalsIgnoreCase("joker")) continue;
+            candidates.add(ability);
+        }
+
+        if (candidates.isEmpty()) return;
+
+        my.pkg.abilities.Ability newAbility = candidates.get(new Random().nextInt(candidates.size()));
+
+        abilitySystem.grant(player, newAbility);
+
+        Bukkit.broadcastMessage("§6[쇼다운] §e" + player.getName() + "§f 님의 조커 능력이 쇼다운 규칙에 의해 리롤되었습니다!");
+        player.sendMessage("§6[쇼다운 리롤] §f새 능력: §a" + newAbility.name());
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.5f);
     }
 
     private ItemStack createVoteHead(Player target) {
