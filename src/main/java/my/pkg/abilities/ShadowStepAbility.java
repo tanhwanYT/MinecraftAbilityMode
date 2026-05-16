@@ -17,6 +17,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
+import org.bukkit.GameMode;
 
 import my.pkg.AbilitySystem;
 
@@ -121,7 +122,16 @@ public class ShadowStepAbility implements Ability, Listener {
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
                 range,
-                entity -> entity instanceof LivingEntity && entity != player
+                entity -> {
+                    if (!(entity instanceof LivingEntity living)) return false;
+                    if (entity.equals(player)) return false;
+
+                    if (living instanceof Player targetPlayer) {
+                        return targetPlayer.getGameMode() == GameMode.SURVIVAL;
+                    }
+
+                    return true;
+                }
         );
 
         if (result == null) return null;

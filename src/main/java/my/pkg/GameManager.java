@@ -110,10 +110,10 @@ public class GameManager implements Listener {
 
     private BukkitTask deathmatchRerollTask;
 
-    private static final int DEATHMATCH_PREP_SEC = 60;
-    private static final int DEATHMATCH_SHRINK_INTERVAL_SEC = 120;
+    private static final int DEATHMATCH_PREP_SEC = 150;
+    private static final int DEATHMATCH_SHRINK_INTERVAL_SEC = 150;
     private static final int DEATHMATCH_SHOWDOWN_AFTER_SEC = 999999;
-    private static final double[] DEATHMATCH_BORDER_SIZES = {300, 180, 100, 60, 35, 20};
+    private static final double[] DEATHMATCH_BORDER_SIZES = {600, 350, 180, 90, 65, 40};
 
     // 쇼다운 승부예측
     private static final String SHOWDOWN_VOTE_TITLE = "§6쇼다운 승부예측";
