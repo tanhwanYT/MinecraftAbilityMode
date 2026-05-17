@@ -218,8 +218,6 @@ public class DoppelgangerAbility implements Ability {
         me.setChestplate(cloneOrNull(pe.getChestplate()));
         me.setLeggings(cloneOrNull(pe.getLeggings()));
         me.setBoots(cloneOrNull(pe.getBoots()));
-        me.setItemInMainHand(null);
-        me.setItemInOffHand(null);
     }
 
     private void applyHiddenState(Player player) {
@@ -232,17 +230,13 @@ public class DoppelgangerAbility implements Ability {
                     cloneOrNull(eq.getHelmet()),
                     cloneOrNull(eq.getChestplate()),
                     cloneOrNull(eq.getLeggings()),
-                    cloneOrNull(eq.getBoots()),
-                    cloneOrNull(eq.getItemInMainHand()),
-                    cloneOrNull(eq.getItemInOffHand())
+                    cloneOrNull(eq.getBoots())
             ));
 
             eq.setHelmet(null);
             eq.setChestplate(null);
             eq.setLeggings(null);
             eq.setBoots(null);
-            eq.setItemInMainHand(null);
-            eq.setItemInOffHand(null);
         }
 
         player.addPotionEffect(new PotionEffect(
@@ -285,8 +279,6 @@ public class DoppelgangerAbility implements Ability {
         eq.setChestplate(snap.chestplate);
         eq.setLeggings(snap.leggings);
         eq.setBoots(snap.boots);
-        eq.setItemInMainHand(snap.mainHand);
-        eq.setItemInOffHand(snap.offHand);
     }
 
     private void endSkill(Player owner, boolean explode) {
@@ -377,17 +369,13 @@ public class DoppelgangerAbility implements Ability {
         private final ItemStack chestplate;
         private final ItemStack leggings;
         private final ItemStack boots;
-        private final ItemStack mainHand;
-        private final ItemStack offHand;
 
         private GearSnapshot(ItemStack helmet, ItemStack chestplate, ItemStack leggings,
-                             ItemStack boots, ItemStack mainHand, ItemStack offHand) {
+                             ItemStack boots) {
             this.helmet = helmet;
             this.chestplate = chestplate;
             this.leggings = leggings;
             this.boots = boots;
-            this.mainHand = mainHand;
-            this.offHand = offHand;
         }
     }
 }

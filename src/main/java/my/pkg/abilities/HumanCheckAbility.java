@@ -125,33 +125,38 @@ public class HumanCheckAbility implements Ability, Listener {
         openCodeGui(player, state);
     }
 
-    private void openCodeGui(Player player, PlayerAuthState state) {
-        Inventory inv = Bukkit.createInventory(null, 27, "§b본인인증 §7- 코드 입력");
+   private void openCodeGui(Player player, PlayerAuthState state) {
+    Inventory inv = Bukkit.createInventory(null, 45, "§b본인인증 §7- 코드 입력");
 
-        inv.setItem(4, makeInfoItem(
-                Material.PAPER,
-                "§e인증코드: §l" + state.code,
-                "§7현재 입력: §f" + displayInput(state.input)
-        ));
+    inv.setItem(4, makeInfoItem(
+            Material.PAPER,
+            "§e인증코드: §l" + state.code,
+            "§7현재 입력: §f" + displayInput(state.input)
+    ));
 
-        inv.setItem(10, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e1", "digit", "1", state.sessionId));
-        inv.setItem(11, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e2", "digit", "2", state.sessionId));
-        inv.setItem(12, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e3", "digit", "3", state.sessionId));
+    // 1 2 3
+    inv.setItem(10, makeDigitButton("1", state.sessionId));
+    inv.setItem(11, makeDigitButton("2", state.sessionId));
+    inv.setItem(12, makeDigitButton("3", state.sessionId));
 
-        inv.setItem(13, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e4", "digit", "4", state.sessionId));
-        inv.setItem(14, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e5", "digit", "5", state.sessionId));
-        inv.setItem(15, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e6", "digit", "6", state.sessionId));
+    // 4 5 6
+    inv.setItem(19, makeDigitButton("4", state.sessionId));
+    inv.setItem(20, makeDigitButton("5", state.sessionId));
+    inv.setItem(21, makeDigitButton("6", state.sessionId));
 
-        inv.setItem(16, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e7", "digit", "7", state.sessionId));
-        inv.setItem(19, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e8", "digit", "8", state.sessionId));
-        inv.setItem(20, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e9", "digit", "9", state.sessionId));
-        inv.setItem(21, makeButton(Material.WHITE_STAINED_GLASS_PANE, "§e0", "digit", "0", state.sessionId));
+    // 7 8 9
+    inv.setItem(28, makeDigitButton("7", state.sessionId));
+    inv.setItem(29, makeDigitButton("8", state.sessionId));
+    inv.setItem(30, makeDigitButton("9", state.sessionId));
 
-        inv.setItem(23, makeButton(Material.RED_STAINED_GLASS_PANE, "§c지우기", "clear", "", state.sessionId));
-        inv.setItem(25, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a확인", "submit", "", state.sessionId));
+    //   0
+    inv.setItem(38, makeDigitButton("0", state.sessionId));
 
-        player.openInventory(inv);
-    }
+    inv.setItem(34, makeButton(Material.RED_STAINED_GLASS_PANE, "§c지우기", "clear", "", state.sessionId));
+    inv.setItem(43, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a확인", "submit", "", state.sessionId));
+
+    player.openInventory(inv);
+}
 
     private void sendRobotStep(Player player, PlayerAuthState state) {
         state.stage = Stage.ROBOT;
@@ -159,26 +164,28 @@ public class HumanCheckAbility implements Ability, Listener {
         sendRobotQuestion(player, state);
     }
 
-    private void sendRobotQuestion(Player player, PlayerAuthState state) {
-        Question q = QUESTIONS[ThreadLocalRandom.current().nextInt(QUESTIONS.length)];
-        state.correctAnswerYes = q.answerYes;
-        openRobotGui(player, state, q.text);
+private void sendRobotQuestion(Player player, PlayerAuthState state) {
+    Question q = QUESTIONS[ThreadLocalRandom.current().nextInt(QUESTIONS.length)];
+    state.correctAnswerYes = q.answerYes;
+    state.currentQuestionText = q.text;
+
+    openRobotGui(player, state);
     }
 
-    private void openRobotGui(Player player, PlayerAuthState state, String question) {
-        Inventory inv = Bukkit.createInventory(null, 27, "§b본인인증 §7- 로봇 검사");
+    private void openRobotGui(Player player, PlayerAuthState state) {
+    Inventory inv = Bukkit.createInventory(null, 27, "§b본인인증 §7- 로봇 검사");
 
-        inv.setItem(4, makeInfoItem(
-                Material.OBSERVER,
-                "§f" + ChatColor.stripColor(question),
-                "§7진행도: §f" + state.noCount + "/" + NEED_ROBOT_QUESTIONS
-        ));
+    inv.setItem(4, makeInfoItem(
+            Material.OBSERVER,
+            "§f" + ChatColor.stripColor(state.currentQuestionText),
+            "§7진행도: §f" + state.noCount + "/" + NEED_ROBOT_QUESTIONS
+    ));
 
-        inv.setItem(11, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a예", "yes", "", state.sessionId));
-        inv.setItem(15, makeButton(Material.RED_STAINED_GLASS_PANE, "§c아니오", "no", "", state.sessionId));
+    inv.setItem(11, makeButton(Material.LIME_STAINED_GLASS_PANE, "§a예", "yes", "", state.sessionId));
+    inv.setItem(15, makeButton(Material.RED_STAINED_GLASS_PANE, "§c아니오", "no", "", state.sessionId));
 
-        player.openInventory(inv);
-    }
+    player.openInventory(inv);
+}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -204,10 +211,16 @@ public class HumanCheckAbility implements Ability, Listener {
 
         switch (action) {
             case "digit" -> handleDigit(player, state, value);
-            case "clear" -> {
-                state.input = "";
-                openCodeGui(player, state);
-            }
+case "clear" -> {
+    state.input = "";
+    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.0f);
+
+    player.getOpenInventory().getTopInventory().setItem(4, makeInfoItem(
+            Material.PAPER,
+            "§e인증코드: §l" + state.code,
+            "§7현재 입력: §f" + displayInput(state.input)
+    ));
+}
             case "submit" -> handleSubmit(player, state);
             case "yes" -> handleYes(player, state);
             case "no" -> handleNo(player, state);
@@ -215,37 +228,44 @@ public class HumanCheckAbility implements Ability, Listener {
     }
 
     @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
-        PlayerAuthState state = states.get(player.getUniqueId());
-        if (state == null) return;
+public void onInventoryClose(InventoryCloseEvent event) {
+    if (!(event.getPlayer() instanceof Player player)) return;
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) return;
-            PlayerAuthState latest = states.get(player.getUniqueId());
-            if (latest == null) return;
+    PlayerAuthState state = states.get(player.getUniqueId());
+    if (state == null) return;
 
-            if (latest.stage == Stage.CODE) {
-                openCodeGui(player, latest);
-            } else {
-                sendRobotQuestion(player, latest);
-            }
-        }, 2L);
-    }
+    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        if (!player.isOnline()) return;
 
-    private void handleDigit(Player player, PlayerAuthState state, String digit) {
-        if (state.stage != Stage.CODE) return;
-        if (digit == null || !digit.matches("[0-9]")) return;
+        PlayerAuthState latest = states.get(player.getUniqueId());
+        if (latest == null) return;
 
-        if (state.input.length() >= 4) {
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
-            return;
+        if (latest.stage == Stage.CODE) {
+            openCodeGui(player, latest);
+        } else {
+            openRobotGui(player, latest);
         }
+    }, 2L);
+}
 
-        state.input += digit;
-        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.4f);
-        openCodeGui(player, state);
+private void handleDigit(Player player, PlayerAuthState state, String digit) {
+    if (state.stage != Stage.CODE) return;
+    if (digit == null || !digit.matches("[0-9]")) return;
+
+    if (state.input.length() >= 4) {
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
+        return;
     }
+
+    state.input += digit;
+    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.4f);
+
+    player.getOpenInventory().getTopInventory().setItem(4, makeInfoItem(
+            Material.PAPER,
+            "§e인증코드: §l" + state.code,
+            "§7현재 입력: §f" + displayInput(state.input)
+    ));
+}
 
     private void handleSubmit(Player player, PlayerAuthState state) {
         if (state.stage != Stage.CODE) return;
@@ -453,6 +473,27 @@ public class HumanCheckAbility implements Ability, Listener {
             new Question("이 질문에 '아니오'를 누르세요.", false),
             new Question("당신은 자동화된 프로그램입니까?", false),
     };
+    
+private ItemStack makeDigitButton(String digit, int sessionId) {
+    int amount;
+
+    if (digit.equals("0")) {
+        amount = 10;
+    } else {
+        amount = Integer.parseInt(digit);
+    }
+
+    ItemStack item = makeButton(
+            Material.WHITE_STAINED_GLASS_PANE,
+            "§e§l" + digit,
+            "digit",
+            digit,
+            sessionId
+    );
+
+    item.setAmount(amount);
+    return item;
+}
 
     private enum Stage {
         CODE,
@@ -479,6 +520,7 @@ public class HumanCheckAbility implements Ability, Listener {
         String input = "";
         int noCount = 0;
         boolean correctAnswerYes;
+        private String currentQuestionText;
 
         PlayerAuthState(int sessionId, UUID playerId, Location lockLocation) {
             this.sessionId = sessionId;
