@@ -20,7 +20,7 @@ public class BangBangAbility implements Ability {
     private static final double MAX_HEALTH = 20.0;     // 10칸
     private static final int DURATION_TICKS = 20 * 8;  // 8초
     private static final double RADIUS = 6.0;          // 주변 플레이어 범위
-    private static final int JUMP_AMPLIFIER = 1;       // 점프강화 II (0이면 I)
+    private static final int JUMP_AMPLIFIER = 2;       // 점프강화
 
     // 현재 스킬이 켜져 있는 방방 플레이어들
     private final Set<UUID> activePlayers = new HashSet<>();

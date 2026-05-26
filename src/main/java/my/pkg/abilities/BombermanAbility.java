@@ -25,6 +25,12 @@ public class BombermanAbility implements Ability {
     private static final int FUSE_TICKS = 40;   // 2초
     private static final float YIELD = 4.0f;    // 폭발 범위
 
+    // 추가
+    private static final double EXPLOSION_DAMAGE_MULTIPLIER = 0.1; // 폭발 피해 10%만 받음
+    private static final long FALL_IMMUNE_MS = 7000; // 폭발 후 7초간 낙뎀 면역
+
+    private static final Map<UUID, Long> fallImmuneUntil = new ConcurrentHashMap<>();
+
     private static final double SPAWN_RADIUS = 1.8; // 플레이어 주변 소환 반경
     private static final boolean CIRCLE_SPAWN = true; // true: 원형으로 균등배치, false: 랜덤
 
@@ -43,9 +49,9 @@ public class BombermanAbility implements Ability {
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
-        player.sendMessage("§a봄버맨 §7: 시간이 지날수록 TNT가 적립됩니다. 능력 사용 시 적립된 TNT를 전부 소환합니다");
+        player.sendMessage("§a붐버맨 §7: 시간이 지날수록 TNT가 적립됩니다. 능력 사용 시 적립된 TNT를 전부 소환합니다");
+        player.sendMessage("§7- 폭발 피해 70% 감소, 폭발 반동 후 낙하 피해 면역");
         player.sendMessage("§7- 적립: " + (CHARGE_INTERVAL_TICKS / 20) + "초마다 +1 (최대 " + MAX_CHARGES + "개)");
-        player.sendMessage("§7- 폭발 피해 면역 유지");
 
         startChargeTask(system, player);
     }
@@ -53,6 +59,7 @@ public class BombermanAbility implements Ability {
     @Override
     public void onRemove(AbilitySystem system, Player player) {
         stopChargeTask(player);
+        fallImmuneUntil.remove(player.getUniqueId());
         charges.remove(player.getUniqueId());
     }
 
@@ -60,11 +67,29 @@ public class BombermanAbility implements Ability {
     public void onDamage(AbilitySystem system, EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
+        UUID id = player.getUniqueId();
         EntityDamageEvent.DamageCause cause = event.getCause();
+
         if (cause == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
                 || cause == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
 
-            event.setDamage(0.0);
+            // 폭발 피해 70% 감소
+            event.setDamage(event.getDamage() * EXPLOSION_DAMAGE_MULTIPLIER);
+
+            // 폭발 반동으로 날아간 뒤 낙뎀 면역
+            fallImmuneUntil.put(id, System.currentTimeMillis() + FALL_IMMUNE_MS);
+            return;
+        }
+
+        if (cause == EntityDamageEvent.DamageCause.FALL) {
+            long until = fallImmuneUntil.getOrDefault(id, 0L);
+
+            if (System.currentTimeMillis() <= until) {
+                event.setCancelled(true);
+                player.sendMessage("§7[붐버맨] §f폭발 반동으로 인한 낙하 피해를 무시했습니다.");
+            } else {
+                fallImmuneUntil.remove(id);
+            }
         }
     }
 

@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
+import org.bukkit.Particle;
 
 import my.pkg.AbilitySystem;
 
@@ -67,7 +68,7 @@ public class donationAbility implements Ability, Listener {
     public String name() { return "도네이션"; }
 
     @Override
-    public int cooldownSeconds() { return 25; }
+    public int cooldownSeconds() { return 30; }
 
     @Override
     public void onGrant(AbilitySystem system, Player player) {
@@ -102,6 +103,7 @@ public class donationAbility implements Ability, Listener {
         state.requiredShift = requiredShift;
 
         stunned.put(tid, state);
+        spawnDonationParticles(target);
 
         target.sendTitle(
                 "§d" + caster.getName() + "님이 1000원 후원!",
@@ -148,6 +150,7 @@ public class donationAbility implements Ability, Listener {
             event.setTo(to);
         }
 
+        spawnDonationAura(p);
     }
 
     @EventHandler
@@ -167,14 +170,71 @@ public class donationAbility implements Ability, Listener {
         if (!event.isSneaking()) return;
 
         state.shiftCount++;
+        spawnDonationShiftParticles(p, state.shiftCount);
 
         int left = Math.max(0, state.requiredShift - state.shiftCount);
-        p.sendMessage("§d[도네이션] §f쉬프트 " + state.shiftCount + "/" + REQUIRED_SHIFT + " §7(남은: " + left + ")");
+        p.sendMessage("§d[도네이션] §f쉬프트 " + state.shiftCount + "/" + state.requiredShift + " §7(남은: " + left + ")");
 
         if (state.shiftCount >= state.requiredShift) {
             stunned.remove(p.getUniqueId());
             p.sendTitle("§a해방!", "§7후원이 끝났습니다", 5, 25, 5);
             p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.1f);
+        }
+    }
+
+    private void spawnDonationParticles(Player target) {
+        target.getWorld().spawnParticle(
+                Particle.HEART,
+                target.getLocation().add(0, 1.2, 0),
+                12,
+                0.45, 0.7, 0.45,
+                0.03
+        );
+
+        target.getWorld().spawnParticle(
+                Particle.NOTE,
+                target.getLocation().add(0, 1.6, 0),
+                16,
+                0.5, 0.5, 0.5,
+                0.05
+        );
+    }
+
+    private void spawnDonationAura(Player target) {
+        target.getWorld().spawnParticle(
+                Particle.NOTE,
+                target.getLocation().add(0, 1.0, 0),
+                2,
+                0.35, 0.5, 0.35,
+                0.01
+        );
+    }
+
+    private void spawnDonationShiftParticles(Player target, int shiftCount) {
+        target.getWorld().spawnParticle(
+                Particle.HEART,
+                target.getLocation().add(0, 1.2, 0),
+                8,
+                0.4, 0.5, 0.4,
+                0.04
+        );
+
+        target.getWorld().spawnParticle(
+                Particle.NOTE,
+                target.getLocation().add(0, 1.6, 0),
+                10,
+                0.5, 0.6, 0.5,
+                0.04
+        );
+
+        if (shiftCount % 5 == 0) {
+            target.getWorld().spawnParticle(
+                    Particle.FIREWORK,
+                    target.getLocation().add(0, 1.0, 0),
+                    20,
+                    0.5, 0.8, 0.5,
+                    0.08
+            );
         }
     }
 }

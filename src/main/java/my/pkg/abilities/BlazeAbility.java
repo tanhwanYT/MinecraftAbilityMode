@@ -16,6 +16,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -28,6 +29,8 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +53,13 @@ public class BlazeAbility implements Ability, Listener {
 
     private static final int COOLDOWN_SECONDS = 24;
     private static final double FIREBALL_SPEED = 1.2;
+
+    private final Map<UUID, Long> lastBlazeDamagedAt = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> lastBlazeHealthStep = new ConcurrentHashMap<>();
+
+    private static final long BLAZE_REGEN_DELAY_MS = 10_000; // 비전투 10초
+    private static final double BLAZE_REGEN_AMOUNT = 1.0; // 1초마다 0.5칸 회복
+    private static final int BLAZE_REGEN_PERIOD = 20; // 1초마다 체크
 
     // 비행 제한
     private static final int MAX_FLIGHT_TICKS = 20 * 6;      // 6초 비행 가능
@@ -174,7 +184,7 @@ public class BlazeAbility implements Ability, Listener {
         if (oldTask != null) {
             oldTask.cancel();
         }
-
+        lastBlazeHealthStep.remove(playerId);
         UUID blazeId = blazeMap.remove(playerId);
         if (blazeId != null) {
             Entity e = Bukkit.getEntity(blazeId);
@@ -218,6 +228,8 @@ public class BlazeAbility implements Ability, Listener {
         blaze.setSilent(true);
         blaze.setRemoveWhenFarAway(false);
 
+        lastBlazeDamagedAt.put(blaze.getUniqueId(), System.currentTimeMillis());
+        lastBlazeHealthStep.put(playerId, 100);
         blaze.setInvulnerable(false);
         blaze.setPersistent(true);
         blaze.setVisualFire(true);
@@ -319,6 +331,12 @@ public class BlazeAbility implements Ability, Listener {
 
                 flightTicksLeft.put(uuid, left);
 
+                if (tick % BLAZE_REGEN_PERIOD == 0) {
+                    regenBlazesOutOfCombat();
+                }
+
+                checkBlazeHealthNotice(player);
+
                 // 물 대미지
                 if (tick % WATER_DAMAGE_PERIOD == 0) {
                     if (isTouchingWater(player)) {
@@ -365,6 +383,51 @@ public class BlazeAbility implements Ability, Listener {
         player.setHealth(newHealth);
     }
 
+    private void checkBlazeHealthNotice(Player player) {
+        UUID playerId = player.getUniqueId();
+        UUID blazeId = blazeMap.get(playerId);
+        if (blazeId == null) return;
+
+        Entity entity = Bukkit.getEntity(blazeId);
+        if (!(entity instanceof Blaze blaze)) return;
+        if (!blaze.isValid() || blaze.isDead()) return;
+
+        AttributeInstance maxHealthAttr = blaze.getAttribute(Attribute.MAX_HEALTH);
+        double maxHealth = maxHealthAttr != null ? maxHealthAttr.getValue() : 20.0;
+
+        double healthPercent = (blaze.getHealth() / maxHealth) * 100.0;
+
+        int step;
+        if (healthPercent <= 20) {
+            step = 20;
+        } else if (healthPercent <= 40) {
+            step = 40;
+        } else if (healthPercent <= 60) {
+            step = 60;
+        } else if (healthPercent <= 80) {
+            step = 80;
+        } else {
+            step = 100;
+        }
+
+        int lastStep = lastBlazeHealthStep.getOrDefault(playerId, 100);
+
+        if (step < lastStep) {
+            lastBlazeHealthStep.put(playerId, step);
+
+            player.sendMessage("§6[블레이즈] §f블레이즈 체력: §e" + step + "%");
+
+            if (step <= 20) {
+                player.sendMessage("§c[블레이즈] 위험! 블레이즈가 거의 죽기 직전입니다!");
+            }
+        }
+
+        // 회복돼서 다시 구간이 올라가면 기록도 올려줌
+        if (step > lastStep) {
+            lastBlazeHealthStep.put(playerId, step);
+        }
+    }
+
     private void burnForbiddenArmor(Player player) {
         PlayerInventory inv = player.getInventory();
 
@@ -400,6 +463,35 @@ public class BlazeAbility implements Ability, Listener {
         return name.endsWith("_BOOTS") || name.endsWith("_LEGGINGS");
     }
 
+    private void regenBlazesOutOfCombat() {
+        long now = System.currentTimeMillis();
+
+        for (UUID blazeId : blazeMap.values()) {
+            Entity entity = Bukkit.getEntity(blazeId);
+            if (!(entity instanceof Blaze blaze)) continue;
+            if (!blaze.isValid() || blaze.isDead()) continue;
+
+            long lastDamaged = lastBlazeDamagedAt.getOrDefault(blazeId, 0L);
+
+            if (now - lastDamaged < BLAZE_REGEN_DELAY_MS) {
+                continue;
+            }
+
+            AttributeInstance maxHealthAttr = blaze.getAttribute(Attribute.MAX_HEALTH);
+            double maxHealth = maxHealthAttr != null ? maxHealthAttr.getValue() : 20.0;
+
+            if (blaze.getHealth() >= maxHealth) continue;
+
+            blaze.setHealth(Math.min(maxHealth, blaze.getHealth() + BLAZE_REGEN_AMOUNT));
+
+            blaze.getWorld().spawnParticle(
+                    Particle.FLAME,
+                    blaze.getLocation().add(0, 1.0, 0),
+                    6, 0.25, 0.35, 0.25, 0.01
+            );
+        }
+    }
+
     private void burnNotice(Player player, String part) {
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_BURN, 0.7f, 1.1f);
         player.getWorld().spawnParticle(
@@ -427,6 +519,7 @@ public class BlazeAbility implements Ability, Listener {
         if (ownerId == null) return;
 
         blazeMap.remove(ownerId);
+        lastBlazeHealthStep.remove(ownerId);
 
         BukkitTask task = followTasks.remove(ownerId);
         if (task != null) {
@@ -438,6 +531,8 @@ public class BlazeAbility implements Ability, Listener {
             player.sendMessage("§c[블레이즈] 당신의 블레이즈가 죽었습니다...");
             player.setHealth(0.0);
         }
+
+        lastBlazeDamagedAt.remove(deadBlazeId);
     }
 
     @EventHandler
@@ -471,6 +566,17 @@ public class BlazeAbility implements Ability, Listener {
             event.setCancelled(true);
             event.getPlayer().sendActionBar("§c[블레이즈] 블록을 설치할 수 없습니다.");
         }
+    }
+
+    @EventHandler
+    public void onBlazeDamaged(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Blaze blaze)) return;
+
+        UUID blazeId = blaze.getUniqueId();
+
+        if (!blazeMap.containsValue(blazeId)) return;
+
+        lastBlazeDamagedAt.put(blazeId, System.currentTimeMillis());
     }
 
     @EventHandler
