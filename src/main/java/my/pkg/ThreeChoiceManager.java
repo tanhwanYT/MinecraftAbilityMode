@@ -433,9 +433,13 @@ public class ThreeChoiceManager implements Listener {
         putAbility(new AbilityInfo("rapidcrossbow", "빠른석궁", "8초 동안 다중발사 석궁을 빠르게 연사. 강한 반동 주의", Material.CROSSBOW));
         putAbility(new AbilityInfo("warden", "워든", "주변 플레이어에게 어둠을 걸고 강한 워든 파동 발사. 밟는 블록을 스컬크로 감염", Material.SCULK_SHRIEKER));
         putAbility(new AbilityInfo("humancheck", "본인인증", "상대와 본인인증 대결 시작. 승리 시 버프, 패배 시 디버프", Material.WRITABLE_BOOK));
-        putAbility(new AbilityInfo("humancheck", "본인인증", "상대와 본인인증 대결 시작. 승리 시 버프, 패배 시 디버프", Material.WRITABLE_BOOK));
         putAbility(new AbilityInfo("golem", "골렘", "타격 시 상대를 공중으로 날림. 최대체력 증가, 공격속도 감소", Material.IRON_BLOCK));
         putAbility(new AbilityInfo("spellbook", "봉풀주", "점멸, 유체화, 회복, 정화, 방어막, 탈진, 점화, 강타 중 원하는 스펠 사용", Material.ENCHANTED_BOOK));
+        putAbility(new AbilityInfo("yone", "요네", "잠시 시전 후 전방의 적을 베어 끌어당기고 마지막 적 뒤로 순간이동", Material.NETHERITE_SWORD));
+        putAbility(new AbilityInfo("crab", "게", "영구 신속 II. 앞뒤 이동이 제한되고 좌우 이동에 특화", Material.NAUTILUS_SHELL));
+        putAbility(new AbilityInfo("tanhwan", "탄환", "전방으로 발사된 후 폭발. 체력이 낮을수록 폭발 피해 증가", Material.GUNPOWDER));
+        putAbility(new AbilityInfo("spacemage", "공간술사", "상공에서 위치를 관측 후 원하는 위치에 폭죽과 함께 재등장", Material.ENDER_EYE));
+        putAbility(new AbilityInfo("randomsupply", "럭키박스", "50% 확률로 보급템, 50% 확률로 쓸모없는 아이템 획득", Material.CHEST));
     }
 
     private void registerRewards() {
