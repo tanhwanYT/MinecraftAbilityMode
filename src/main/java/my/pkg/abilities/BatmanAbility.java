@@ -26,8 +26,8 @@ public class BatmanAbility implements Ability, Listener {
 
     // ===== 밸런스 =====
     private static final double INITIAL_FIREBALL_SPEED = 0.85;
-    private static final double SPEED_ADD_PER_HIT = 0.28;
-    private static final double MAX_FIREBALL_SPEED = 2.6;
+    private static final double SPEED_ADD_PER_HIT = 0.35;
+    private static final double MAX_FIREBALL_SPEED = 3.0;
     private static final float FIREBALL_YIELD = 0.0f; // 폭발 파괴 X
     private static final int COOLDOWN_SECONDS = 14;
 

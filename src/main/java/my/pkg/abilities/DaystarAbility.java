@@ -119,13 +119,13 @@ public class DaystarAbility implements Ability, Listener {
             if (p.equals(caster)) continue; // 시전자는 안 맞음
 
             if (p.getLocation().distance(loc) <= 3) {
-                p.damage(5.0, caster);
+                p.damage(8.0, caster);
             }
         }
 
         // 대상 직접 피해
         if (!target.equals(caster)) {
-            target.damage(4.0, caster);
+            target.damage(6.0, caster);
         }
     }
 
@@ -145,17 +145,21 @@ public class DaystarAbility implements Ability, Listener {
         }
     }
 
-    // 대상 탐지 (간단 레이캐스트)
     private Player getTarget(Player player) {
-        for (Entity e : player.getNearbyEntities(10, 10, 10)) {
-            if (e instanceof Player p) {
-                if (p.equals(player)) continue;
+        Entity target = player.getTargetEntity(10, false);
 
-                if (player.hasLineOfSight(p)) {
-                    return p;
-                }
-            }
+        if (!(target instanceof Player p)) {
+            return null;
         }
-        return null;
+
+        if (p.equals(player)) {
+            return null;
+        }
+
+        if (p.getGameMode() != GameMode.SURVIVAL) {
+            return null;
+        }
+
+        return p;
     }
 }

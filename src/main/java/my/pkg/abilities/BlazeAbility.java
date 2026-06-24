@@ -62,7 +62,7 @@ public class BlazeAbility implements Ability, Listener {
     private static final int BLAZE_REGEN_PERIOD = 20; // 1초마다 체크
 
     // 비행 제한
-    private static final int MAX_FLIGHT_TICKS = 20 * 6;      // 6초 비행 가능
+    private static final int MAX_FLIGHT_TICKS = 20 * 5;      // 5초 비행 가능
     private static final int FLIGHT_REGEN_PER_TICK = 1;      // 땅에 있으면 초당 20틱 회복
     private static final int WATER_DAMAGE_PERIOD = 20;       // 1초마다
     private static final double WATER_DAMAGE = 2.0;          // 1초마다 1칸

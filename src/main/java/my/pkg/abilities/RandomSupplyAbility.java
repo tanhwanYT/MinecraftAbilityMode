@@ -4,23 +4,34 @@ import my.pkg.AbilitySystem;
 import my.pkg.SupplyManager;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.NamespacedKey;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class RandomSupplyAbility implements Ability {
+public class RandomSupplyAbility implements Ability, Listener {
 
     private final SupplyManager supplyManager;
 
-    private static final int COOLDOWN = 42;
+    private static final int COOLDOWN = 45;
 
     // 플레이어별 이미 나온 진짜 보급템
     private final Map<UUID, Set<String>> usedSupplyItems = new HashMap<>();
 
     // 플레이어별 이미 나온 가짜 보급템
     private final Map<UUID, Set<String>> usedTrashItems = new HashMap<>();
+
+    private NamespacedKey lockedSupplyKey;
+    private static boolean listenerRegistered = false;
 
     public RandomSupplyAbility(SupplyManager supplyManager) {
         this.supplyManager = supplyManager;
@@ -45,6 +56,15 @@ public class RandomSupplyAbility implements Ability {
     public void onGrant(AbilitySystem system, Player player) {
         player.sendMessage("§e럭키박스 §7: 능력 사용 시 50% 확률로 보급템을 얻습니다.");
         player.sendMessage("§7나머지 50% 확률로 쓸모없는 아이템을 얻습니다.");
+
+        if (lockedSupplyKey == null) {
+            lockedSupplyKey = new NamespacedKey(system.getPlugin(), "locked_luckybox_supply");
+        }
+
+        if (!listenerRegistered) {
+            Bukkit.getPluginManager().registerEvents(this, system.getPlugin());
+            listenerRegistered = true;
+        }
     }
 
     @Override
@@ -89,6 +109,7 @@ public class RandomSupplyAbility implements Ability {
         }
 
         used.add(id);
+        markLockedSupplyItem(item);
         giveItem(player, item);
 
         sendUnifiedMessage(player, item);
@@ -100,6 +121,29 @@ public class RandomSupplyAbility implements Ability {
                 0.4, 0.5, 0.4,
                 0.05
         );
+    }
+
+    private void markLockedSupplyItem(ItemStack item) {
+        if (item == null || lockedSupplyKey == null) return;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        meta.getPersistentDataContainer().set(
+                lockedSupplyKey,
+                PersistentDataType.BYTE,
+                (byte) 1
+        );
+
+        item.setItemMeta(meta);
+    }
+
+    private boolean isLockedSupplyItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || lockedSupplyKey == null) return false;
+
+        return item.getItemMeta()
+                .getPersistentDataContainer()
+                .has(lockedSupplyKey, PersistentDataType.BYTE);
     }
 
     private void giveRandomTrashItem(Player player) {
@@ -162,7 +206,7 @@ public class RandomSupplyAbility implements Ability {
                         "§8사용할 수 없다."),
 
                 trash("fire_resistance_resistance_ring",
-                        Material.WITHER_ROSE,
+                        Material.BLAZE_ROD,
                         "§f화염 저항 저항의 반지",
                         "§7지니고 있을시 화염저항 버프를",
                         "§8받지 않는다."),
@@ -218,5 +262,41 @@ public class RandomSupplyAbility implements Ability {
     }
 
     private record TrashEntry(String id, ItemStack item) {
+    }
+
+    @EventHandler
+    public void onDrop(PlayerDropItemEvent event) {
+        ItemStack item = event.getItemDrop().getItemStack();
+
+        if (!isLockedSupplyItem(item)) return;
+
+        event.setCancelled(true);
+        event.getPlayer().sendMessage("§c[럭키박스] 이 보급 아이템은 버릴 수 없습니다.");
+    }
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        ItemStack current = event.getCurrentItem();
+        ItemStack cursor = event.getCursor();
+
+        InventoryAction action = event.getAction();
+
+        if (action == InventoryAction.DROP_ALL_SLOT
+                || action == InventoryAction.DROP_ONE_SLOT) {
+
+            if (isLockedSupplyItem(current)) {
+                event.setCancelled(true);
+                event.getWhoClicked().sendMessage("§c[럭키박스] 이 보급 아이템은 버릴 수 없습니다.");
+            }
+        }
+
+        if (action == InventoryAction.DROP_ALL_CURSOR
+                || action == InventoryAction.DROP_ONE_CURSOR) {
+
+            if (isLockedSupplyItem(cursor)) {
+                event.setCancelled(true);
+                event.getWhoClicked().sendMessage("§c[럭키박스] 이 보급 아이템은 버릴 수 없습니다.");
+            }
+        }
     }
 }

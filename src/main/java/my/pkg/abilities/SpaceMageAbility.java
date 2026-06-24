@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SpaceMageAbility implements Ability, Listener {
 
-    private static final int COOLDOWN = 30;
+    private static final int COOLDOWN = 75;
 
     private static final double SKY_HEIGHT = 18.0;
     private static final double MAX_TELEPORT_DISTANCE = 28.0;

@@ -56,6 +56,11 @@ public class GameManager implements Listener {
     // 게임 시작 당시 참가자 목록
     private final Set<UUID> gameParticipants = ConcurrentHashMap.newKeySet();
 
+    // 접속 종료 시간 기록
+    private final Map<UUID, Long> offlineSince = new ConcurrentHashMap<>();
+
+    private BukkitTask offlineCheckTask;
+
     private BossBar bossBar;
     private Scoreboard scoreboard;
     private Objective livesObj;
@@ -281,6 +286,9 @@ public class GameManager implements Listener {
 
         phaseRemainingSec = prepSec;
         startTicker();
+
+        offlineSince.clear();
+        startOfflineCheckTask();
 
         if (miniMode) {
             Bukkit.broadcastMessage("§d[미니 도능] §f준비 시작! §e" + prepSec + "초§f 후 게임이 시작됩니다.");
@@ -988,6 +996,8 @@ public class GameManager implements Listener {
                     player.sendMessage("§a[게임] 다시 접속했습니다. 기존 목숨과 능력 그대로 복귀합니다!");
                     player.sendMessage("§e[게임] 남은 목숨: §c" + lives.getOrDefault(id, 0));
 
+                    offlineSince.remove(player.getUniqueId());
+
                     updateScoreboardAll();
 
                     if (phase == Phase.RUNNING && showdownEnabled
@@ -1140,6 +1150,56 @@ public class GameManager implements Listener {
         player.closeInventory();
     }
 
+    private void startOfflineCheckTask() {
+        if (offlineCheckTask != null) {
+            offlineCheckTask.cancel();
+        }
+
+        offlineCheckTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+
+            if (!isRunning()) return;
+
+            long now = System.currentTimeMillis();
+
+            List<UUID> removeList = new ArrayList<>();
+
+            for (Map.Entry<UUID, Long> entry : offlineSince.entrySet()) {
+
+                UUID uuid = entry.getKey();
+
+                if (Bukkit.getPlayer(uuid) != null &&
+                        Bukkit.getPlayer(uuid).isOnline()) {
+                    continue;
+                }
+
+                if (now - entry.getValue() >= 120_000) { // 2분
+
+                    removeList.add(uuid);
+                }
+            }
+
+            for (UUID uuid : removeList) {
+
+                offlineSince.remove(uuid);
+
+                alive.remove(uuid);
+                pendingRespawn.remove(uuid);
+                lives.put(uuid, 0);
+
+                String name = Bukkit.getOfflinePlayer(uuid).getName();
+
+                Bukkit.broadcastMessage(
+                        "§c[탈락] §f" + name
+                                + "§7 님이 2분 이상 접속하지 않아 탈락 처리되었습니다."
+                );
+
+                updateScoreboardAll();
+                checkWinner();
+            }
+
+        }, 20L, 20L);
+    }
+
     private void checkWinner() {
         if (phase == Phase.IDLE || phase == Phase.ENDED) return;
         if (deathmatchMode) return;
@@ -1191,6 +1251,10 @@ public class GameManager implements Listener {
         if (deathmatchRerollTask != null) {
             deathmatchRerollTask.cancel();
             deathmatchRerollTask = null;
+        }
+        if (offlineCheckTask != null) {
+            offlineCheckTask.cancel();
+            offlineCheckTask = null;
         }
     }
 
@@ -1348,6 +1412,9 @@ public class GameManager implements Listener {
         pendingLateJoinChoice.remove(id);
 
         if (gameParticipants.contains(id) && alive.contains(id)) {
+
+            offlineSince.put(id, System.currentTimeMillis());
+
             return;
         }
 

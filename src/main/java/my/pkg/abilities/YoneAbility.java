@@ -13,11 +13,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class YoneAbility implements Ability, Listener {
 
-    private static final int COOLDOWN = 80;
+    private static final int COOLDOWN = 40;
 
     private static final double RANGE = 12.0;
     private static final double HIT_WIDTH = 1.8;
-    private static final double DAMAGE = 7.0;
+    private static final double DAMAGE = 9.0;
 
     private static final long CAST_DELAY_TICKS = 13L;
     private static final double BEHIND_DISTANCE = 1.4;

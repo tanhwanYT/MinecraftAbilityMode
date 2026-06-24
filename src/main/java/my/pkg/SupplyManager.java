@@ -116,6 +116,7 @@ public class SupplyManager implements Listener {
         add(new StatAnvilItem(plugin, itemIdKey));
         add(new MonsterBallItem(plugin, itemIdKey));
         add(new BluetoothShowerItem(itemIdKey));
+        add(new BosungGreenTeaItem(itemIdKey));
     }
 
     private void add(SupplyItem item) { items.put(item.id(), item); }
@@ -137,6 +138,7 @@ public class SupplyManager implements Listener {
         loot.add(new Weighted("stat_anvil", 10));
         loot.add(new Weighted("monster_ball", 10));
         loot.add(new Weighted("bluetooth_shower", 10));
+        loot.add(new Weighted("bosung_green_tea", 10));
     }
 
     private void spawnCrateNearRandomPlayer() {

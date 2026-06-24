@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BackAttackerAbility implements Ability {
 
     // ===== 밸런스 설정 =====
-    private static final double BONUS_DAMAGE = 2.0;      // 뒤 공격 추가 대미지
+    private static final double BONUS_DAMAGE = 4.0;      // 뒤 공격 추가 대미지
     private static final double BACK_THRESHOLD = -0.5;   // 뒤 판정 기준(dot)
     private static final int DASH_TICKS = 3;             // 돌진 지속 틱
     private static final double DASH_SPEED = 0.8;       // 돌진 속도
@@ -42,7 +42,7 @@ public class BackAttackerAbility implements Ability {
 
     @Override
     public int cooldownSeconds() {
-        return 15;
+        return 20;
     }
 
     @Override

@@ -11,6 +11,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.bukkit.block.Block;
 import org.bukkit.event.player.PlayerMoveEvent;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 public class WardenAbility implements Ability, Listener {
 
@@ -82,13 +85,15 @@ public class WardenAbility implements Ability, Listener {
     private void fireWave(Player player) {
         World world = player.getWorld();
 
-        player.sendMessage("§8[워든] §f파동 발사!");
+        player.sendMessage("§8[워든] §f관통 파동 발사!");
         world.playSound(player.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 1f, 1f);
 
         Location start = player.getEyeLocation();
         Vector dir = start.getDirection().normalize();
 
         double length = 15;
+
+        Set<UUID> hitPlayers = new HashSet<>();
 
         for (double i = 0; i < length; i += 0.5) {
             Location point = start.clone().add(dir.clone().multiply(i));
@@ -100,16 +105,25 @@ public class WardenAbility implements Ability, Listener {
             );
 
             for (Entity e : world.getNearbyEntities(point, 1, 1, 1)) {
-                if (e instanceof Player target && !target.equals(player)) {
+                if (!(e instanceof Player target)) continue;
+                if (target.equals(player)) continue;
+                if (hitPlayers.contains(target.getUniqueId())) continue;
+                if (target.getGameMode() != GameMode.SURVIVAL) continue;
 
-                    target.damage(10.0, player);
+                hitPlayers.add(target.getUniqueId());
 
-                    Vector knock = dir.clone().multiply(1.2);
-                    knock.setY(0.3);
-                    target.setVelocity(knock);
+                target.damage(10.0, player);
 
-                    return; // 첫 대상만 맞추고 끝
-                }
+                Vector knock = dir.clone().multiply(1.2);
+                knock.setY(0.3);
+                target.setVelocity(knock);
+
+                target.getWorld().playSound(
+                        target.getLocation(),
+                        Sound.ENTITY_WARDEN_HURT,
+                        0.8f,
+                        0.7f
+                );
             }
         }
     }

@@ -17,8 +17,8 @@ public class GolemAbility implements Ability {
     private final JavaPlugin plugin;
     private final NamespacedKey attackSpeedKey;
 
-    private static final double LAUNCH_Y = 1.15;
-    private static final double LAUNCH_BACK = 0.25;
+    private static final double LAUNCH_Y = 0.65;
+    private static final double LAUNCH_BACK = 0.35;
 
     private final NamespacedKey healthKey;
     private static final double BONUS_HEALTH = 4.0; // 2칸
@@ -107,7 +107,7 @@ public class GolemAbility implements Ability {
 
         AttributeModifier modifier = new AttributeModifier(
                 attackSpeedKey,
-                -1.2,
+                -2.0,
                 AttributeModifier.Operation.ADD_NUMBER
         );
 
